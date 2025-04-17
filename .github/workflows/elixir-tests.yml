@@ -78,6 +78,12 @@ jobs:
           name: coverage-report
           path: cover/
           retention-days: 14
-
-          # add the call to the new action here AI!
+          
+      - name: AI Test Writer
+        uses: ./ai-test-writer
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          coverage-path: cover/coverage.json
 

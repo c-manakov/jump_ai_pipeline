@@ -212,7 +212,7 @@ async function postTestSuggestions(octokit, owner, repo, pullNumber, file, analy
 ${suggestion.explanation}
 
 ### Suggested Test:
-\`\`\`
+\`\`\`elixir
 ${suggestion.test_code}
 \`\`\`
 `;
