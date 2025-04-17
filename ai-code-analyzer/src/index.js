@@ -185,6 +185,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 2. Explain why it violates the rule
 3. Suggest a specific code change to fix the issue
 4. Include the line number or code snippet where the violation occurs
+5. The suggestion should be actual code, while the explanation should go into explanation
 
 Format your response as JSON:
 {
