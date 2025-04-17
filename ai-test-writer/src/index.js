@@ -91,10 +91,15 @@ async function run() {
       console.error(`Error loading coverage data: ${error.message}`);
     }
 
-    // filter out files that are not elixir (don't end in .ex) AI!
     // Process each file in the PR
     for (const file of files) {
       if (file.status === "removed") continue;
+      
+      // Only process Elixir files
+      if (!file.filename.endsWith('.ex') && !file.filename.endsWith('.exs')) {
+        console.log(`Skipping non-Elixir file: ${file.filename}`);
+        continue;
+      }
 
       // Extract added lines
       const addedLines = extractAddedLines(file.patch);
