@@ -66,16 +66,25 @@ jobs:
           echo "| Module | Coverage |" >> $GITHUB_STEP_SUMMARY
           echo "| ------ | -------- |" >> $GITHUB_STEP_SUMMARY
           
-          # Parse the coverage output and add to summary
-          mix test.coverage | grep -E "[0-9]+\.[0-9]+%" | while read -r line; do
-            module=$(echo "$line" | awk '{print $1}')
+          # Run coverage summary and capture output
+          coverage_output=$(mix coverage.summary)
+          
+          # Parse the output line by line
+          echo "$coverage_output" | grep -E ".*: [0-9]+\.[0-9]+%" | while read -r line; do
+            # Extract module name (everything before the colon)
+            module=$(echo "$line" | sed 's/: .*$//')
+            # Extract coverage percentage
             coverage=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+%")
             echo "| $module | $coverage |" >> $GITHUB_STEP_SUMMARY
           done
           
           # Add total coverage
-          total=$(mix test.coverage | grep "Total:" | grep -o "[0-9]\+\.[0-9]\+%")
-          echo "| **Total** | **$total** |" >> $GITHUB_STEP_SUMMARY
+          total=$(echo "$coverage_output" | grep "Total:" | grep -o "[0-9]\+\.[0-9]\+%")
+          if [ -n "$total" ]; then
+            echo "| **Total** | **$total** |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Total** | **N/A** |" >> $GITHUB_STEP_SUMMARY
+          fi
       
       - name: Archive coverage results
         uses: actions/upload-artifact@v4
