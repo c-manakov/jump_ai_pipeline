@@ -230,6 +230,16 @@ If no issues are found, return {"issues": []}.
 }
 
 async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
+  // Get the latest commit ID from the PR
+  const { data: pullRequest } = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullNumber,
+  });
+  
+  const latestCommitId = pullRequest.head.sha;
+  console.log(`Using latest commit ID from PR: ${latestCommitId}`);
+  
   for (const issue of analysis.issues) {
     // Find the line in the file
     const lineNumber = findLineNumber(file.patch, issue.line);
@@ -246,19 +256,25 @@ ${issue.suggestion}
 
 [View rule](${issue.rule_id}.md)`;
 
-    console.log(octokit.rest.pulls);
-    // Create a review comment
-    await octokit.rest.pulls.createReviewComment({
-      owner,
-      repo,
-      pull_number: pullNumber,
-      body,
-      commit_id: file.sha,
-      path: file.filename,
-      line: lineNumber,
-    });
+    console.log(`Posting comment on ${file.filename}:${lineNumber} with commit ID ${latestCommitId}`);
+    
+    try {
+      // Create a review comment
+      await octokit.rest.pulls.createReviewComment({
+        owner,
+        repo,
+        pull_number: pullNumber,
+        body,
+        commit_id: latestCommitId,
+        path: file.filename,
+        line: lineNumber,
+      });
 
-    console.log(`Posted comment on ${file.filename}:${lineNumber}`);
+      console.log(`Posted comment on ${file.filename}:${lineNumber}`);
+    } catch (error) {
+      console.error(`Error posting comment: ${error.message}`);
+      console.error(error);
+    }
   }
 }
 
