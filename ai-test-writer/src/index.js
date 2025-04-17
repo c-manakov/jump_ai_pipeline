@@ -402,9 +402,8 @@ async function generateRepoMap(octokit, owner, repo) {
   console.log("Generating repository file map...");
   
   try {
-    // we should always use the filesystem actually since this action will have access to the repo  AI!
-    // For local development, we can use the filesystem
-    if (process.env.NODE_ENV === 'development') {
+    // Always use the filesystem since the action has access to the repo
+    {
       const files = [];
       const rootDir = path.resolve(process.cwd(), '..');
       
