@@ -41,7 +41,7 @@ async function main() {
     // Initialize act-js
     const act = new Act({
       cwd: path.resolve(__dirname, '..'), // Run from the root of the project
-      workflowFile: '.github/workflows' // Path to workflow files
+      workflowPath: '.github/workflows' // Path to workflow files
     });
 
     // Build the action first
