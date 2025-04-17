@@ -7,6 +7,15 @@ defmodule JumpAiPipeline do
   if it comes from the database, an external API or others.
   """
   def some_func_test_pipeline() do
-    
-  end 
+  end
+
+  def open_decoded_file(path) do
+    with {:ok, encoded} <- File.read(path),
+         {:ok, decoded} <- Base.decode64(encoded) do
+      {:ok, String.trim(decoded)}
+    else
+      {:error, _} -> {:error, :badfile}
+      :error -> {:error, :badencoding}
+    end
+  end
 end
