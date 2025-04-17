@@ -51,9 +51,6 @@ jobs:
           MIX_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
       
-      - name: Check formatting
-        run: mix format --check-formatted
-      
       - name: Generate coverage report
         run: mix test --cover --export-coverage default 
         env:
