@@ -247,9 +247,10 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
+  // add test file path to the prompt and instruct the ai to include it if it requests an addition AI! 
   // Create the prompt for Claude
   const prompt = `
-You are a test writing assistant that helps developers improve their test coverage.
+You are an expert automated QA engineer that helps developers improve their test coverage.
 
 ${
   enhancedFileContent
@@ -282,9 +283,8 @@ Analyze the code and suggest tests that would improve coverage. Focus ONLY on un
 
 Do NOT create tests for uncovered lines that weren't part of this commit. For each suggestion:
 1. Identify the specific function or code block that needs testing
-2. Explain why testing this is important
-3. Provide a specific test case implementation that would test this code
-4. Make sure the test follows best practices and is well-structured
+2. Provide a specific test case implementation that would test this code
+3. Make sure the test follows best practices and is well-structured
 
 Format your response as JSON:
 {
