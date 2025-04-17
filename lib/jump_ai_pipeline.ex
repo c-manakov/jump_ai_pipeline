@@ -9,7 +9,9 @@ defmodule JumpAiPipeline do
   def some_func_test_pipeline() do
   end
 
-  def open_decoded_file(path) do
+  def open_decoded_file(path, file, something, something_different) do
+    # unneseccary comment 1
+    # unneseccary comment 2
     with {:ok, encoded} <- File.read(path),
          {:ok, decoded} <- Base.decode64(encoded) do
       {:ok, String.trim(decoded)}
