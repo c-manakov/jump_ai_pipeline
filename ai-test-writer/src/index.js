@@ -115,6 +115,7 @@ async function run() {
       // Get the full file content for better context
       let fileContent = "";
       try {
+        // we don't need to get it from github, we can just read it from filesystem, we know the path AI!
         const { data: fileData } = await octokit.rest.repos.getContent({
           owner,
           repo,
