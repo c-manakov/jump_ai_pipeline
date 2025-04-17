@@ -247,7 +247,6 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
-  // instruct the ai to only create tests for uncovered lines that were added in this commit, if there's something uncovered in this file but it wasn't added then no tests should be created for it AI!
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -279,7 +278,9 @@ ${testFileContent}
 ${code}
 \`\`\`
 
-Analyze the code and suggest tests that would improve coverage. Pay special attention to lines marked with "# UNCOVERED" as these need test coverage. For each suggestion:
+Analyze the code and suggest tests that would improve coverage. Focus ONLY on uncovered lines that were added in the current commit (these are the lines in the "Code changes to analyze" section that are also marked with "# UNCOVERED" in the full file content).
+
+Do NOT create tests for uncovered lines that weren't part of this commit. For each suggestion:
 1. Identify the specific function or code block that needs testing
 2. Explain why testing this is important
 3. Provide a specific test case implementation that would test this code
