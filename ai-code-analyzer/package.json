@@ -6,8 +6,6 @@
   "scripts": {
     "build": "ncc build src/index.js -o dist",
     "test": "jest",
-    "test:local": "node test-local.js",
-    "test:act": "node test-with-act.js",
     "test:actjs": "node test-with-actjs.js"
   },
   "keywords": [
