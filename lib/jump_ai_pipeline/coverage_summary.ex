@@ -14,16 +14,12 @@ defmodule JumpAiPipeline.CoverageSummary do
       System.halt(1)
     end
 
-    dbg(coverage_files)
-
     # Import the coverage data
     :cover.start()
     Enum.map(coverage_files, &:cover.import/1)
 
     # Get all modules
     all_modules = :cover.imported_modules()
-
-# now what I want to be able to get is data on the coverage line-by-line and export it as json AI!
 
     # Print header
     IO.puts("\nCoverage Summary:")
@@ -64,5 +60,75 @@ defmodule JumpAiPipeline.CoverageSummary do
 
     # Return the results
     {total_percentage, module_results}
+  end
+
+  @doc """
+  Exports line-by-line coverage data as JSON.
+  """
+  def export_json(output_path \\ "cover/coverage.json") do
+    coverage_files = Path.wildcard("cover/default.coverdata")
+
+    if Enum.empty?(coverage_files) do
+      IO.puts("No coverage data found. Run tests with coverage first.")
+      System.halt(1)
+    end
+
+    # Import the coverage data
+    :cover.start()
+    Enum.map(coverage_files, &:cover.import/1)
+
+    # Get all modules
+    all_modules = :cover.imported_modules()
+
+    # Collect line-by-line coverage data for each module
+    coverage_data = 
+      Enum.map(all_modules, fn module ->
+        module_name = module |> to_string() |> String.replace_prefix("Elixir.", "")
+        
+        # Get line-by-line coverage
+        case :cover.analyse(module, :coverage, :line) do
+          {:ok, lines} ->
+            lines_data = Enum.map(lines, fn {{_, line_num}, count} ->
+              %{
+                line: line_num,
+                count: count,
+                covered: count > 0
+              }
+            end)
+            
+            # Calculate module coverage percentage
+            {covered, total} =
+              case :cover.analyse(module, :coverage, :module) do
+                {:ok, {_, {c, t}}} -> {c, t}
+                _ -> {0, 0}
+              end
+            
+            percentage = if total > 0, do: covered / total * 100, else: 0.0
+            
+            %{
+              module: module_name,
+              coverage_percentage: Float.round(percentage, 2),
+              lines: lines_data
+            }
+          _ ->
+            %{
+              module: module_name,
+              coverage_percentage: 0.0,
+              lines: []
+            }
+        end
+      end)
+    
+    # Create the output directory if it doesn't exist
+    output_dir = Path.dirname(output_path)
+    File.mkdir_p!(output_dir)
+    
+    # Write the JSON file
+    json_content = Jason.encode!(coverage_data, pretty: true)
+    File.write!(output_path, json_content)
+    
+    IO.puts("Coverage data exported to #{output_path}")
+    
+    coverage_data
   end
 end

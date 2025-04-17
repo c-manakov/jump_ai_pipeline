@@ -84,6 +84,7 @@ defmodule JumpAiPipeline.MixProject do
         "test --cover --export-coverage default"
       ],
       "coverage.summary": ["run -e 'JumpAiPipeline.CoverageSummary.print()'"],
+      "coverage.json": ["run -e 'JumpAiPipeline.CoverageSummary.export_json()'"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind jump_ai_pipeline", "esbuild jump_ai_pipeline"],
       "assets.deploy": [
