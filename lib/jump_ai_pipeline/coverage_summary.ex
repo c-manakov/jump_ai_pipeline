@@ -95,9 +95,10 @@ defmodule JumpAiPipeline.CoverageSummary do
         # Get line-by-line coverage
         case :cover.analyse(module, :coverage, :line) do
           {:ok, lines} ->
+            dbg(lines)
             # Convert to more compact format: [[line_number, covered?], ...]
-            lines_data = Enum.map(lines, fn {{_, line_num}, count} ->
-              [line_num, count > 0]
+            lines_data = Enum.map(lines, fn {{_, line_num}, {covered?, _}} ->
+              [line_num, covered? == 1]
             end)
             
             # Calculate module coverage percentage
