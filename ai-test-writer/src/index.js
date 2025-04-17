@@ -116,6 +116,7 @@ async function run() {
       let fileContent = "";
       try {
         // Read file content from filesystem
+        // filename is from the root, so we need to add ../.. and path resolve AI!
         fileContent = fs.readFileSync(file.filename, 'utf8');
         console.log(`Read full content for ${file.filename} (${fileContent.length} chars)`);
       } catch (error) {
