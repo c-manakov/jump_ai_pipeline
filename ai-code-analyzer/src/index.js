@@ -48,6 +48,7 @@ async function run() {
     const context = github.context;
     const { owner, repo } = context.repo;
     const pullNumber = context.payload.pull_request?.number;
+    console.log(context.payload.pull_request);
 
     // For local development:
     // const { Octokit } = require('@octokit/rest');
