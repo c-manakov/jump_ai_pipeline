@@ -83,6 +83,7 @@ defmodule JumpAiPipeline.MixProject do
         "ecto.migrate --quiet",
         "test --cover --export-coverage default"
       ],
+      "coverage.summary": ["run -e 'JumpAiPipeline.CoverageSummary.print()'"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind jump_ai_pipeline", "esbuild jump_ai_pipeline"],
       "assets.deploy": [

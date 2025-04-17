@@ -60,6 +60,23 @@ jobs:
           MIX_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
       
+      - name: Generate coverage summary
+        run: |
+          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "| ------ | -------- |" >> $GITHUB_STEP_SUMMARY
+          
+          # Parse the coverage output and add to summary
+          mix test.coverage | grep -E "[0-9]+\.[0-9]+%" | while read -r line; do
+            module=$(echo "$line" | awk '{print $1}')
+            coverage=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+%")
+            echo "| $module | $coverage |" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          # Add total coverage
+          total=$(mix test.coverage | grep "Total:" | grep -o "[0-9]\+\.[0-9]\+%")
+          echo "| **Total** | **$total** |" >> $GITHUB_STEP_SUMMARY
+      
       - name: Archive coverage results
         uses: actions/upload-artifact@v4
         with:
