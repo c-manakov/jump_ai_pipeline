@@ -45,6 +45,8 @@ async function run() {
     const pullNumber = context.payload.pull_request?.number;
     console.log(context.payload.pull_request);
 
+    // add the local development initialization here same as in the code analyzer AI!
+
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
     });
