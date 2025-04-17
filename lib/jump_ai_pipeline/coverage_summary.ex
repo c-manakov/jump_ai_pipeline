@@ -85,8 +85,6 @@ defmodule JumpAiPipeline.CoverageSummary do
       Enum.map(all_modules, fn module ->
         module_name = module |> to_string() |> String.replace_prefix("Elixir.", "")
         
-        
-        # just get the filepath through the module name without checking anything here and don't do any other changes anywhere AI!
         source_file = 
           case :cover.is_compiled(module) do
             {:file, file} -> to_string(file)
