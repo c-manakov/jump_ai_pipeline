@@ -357,7 +357,6 @@ async function postTestSuggestions(
   const latestCommitId = pullRequest.head.sha;
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
-  // also add the path to the existing test file if it exists AI!
   for (const suggestion of analysis.suggestions) {
     const body = `## AI Test Suggestion for: ${suggestion.target}
 
@@ -372,7 +371,9 @@ ${
     ? `
 ### Note: This requires creating a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
 `
-    : ""
+    : `
+### Add to existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
+`
 }`;
 
     try {
