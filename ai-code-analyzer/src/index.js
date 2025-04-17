@@ -13,7 +13,12 @@ async function run() {
     console.log("Current directory:", process.cwd());
     // Get inputs
     const githubToken = core.getInput('github-token', { required: true });
-    const anthropicApiKey = core.getInput('anthropic-api-key', { required: true });
+    const anthropicApiKey = core.getInput('anthropic-api-key') || process.env.ANTHROPIC_API_KEY;
+    
+    if (!anthropicApiKey) {
+      throw new Error('Anthropic API key is required. Please provide it as an input or environment variable.');
+    }
+    
     const rulesPath = core.getInput('rules-path') || '.ai-code-rules';
     
     console.log("Inputs received:");
