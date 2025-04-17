@@ -8,6 +8,7 @@ const { marked } = require('marked');
 
 async function run() {
   try {
+    console.log("starting")
     // Get inputs
     const githubToken = core.getInput('github-token', { required: true });
     const anthropicApiKey = core.getInput('anthropic-api-key', { required: true });
