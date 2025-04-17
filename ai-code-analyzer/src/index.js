@@ -170,8 +170,6 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // let's change the approach with line numbers, instead of asking the ai to provide specific lines let's ask it to provide the full code that is problematic and the suggestion that should be in place, and then let's find the line numbers specific code chunk ourselves, without the AI AI!
-
   // Create the prompt for Claude
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
@@ -187,18 +185,16 @@ ${code}
 Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
-3. Suggest a specific code change to fix the issue, but only do that if the suggestion is meaningful and changes the code. It's completely okay to not provide a suggestion if it's unclear or the code is the same.
-4. Include the starting line number and the ending line number for where the violation occurs and the possible suggestion should be applied. If the code snippet is one line then they can be the same.
-5. The suggestion should be actual code, while the explanation should go into explanation. Make sure that if the suggestion is applied, no lines are duplicated. If the suggestion is supposed to replace multiple lines of code then include all of these lines
-6. Try to keep the formatting correct
+3. Include the exact problematic code snippet that violates the rule
+4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code
+5. Make sure the suggestion maintains proper formatting and indentation
 
 Format your response as JSON:
 {
   "issues": [
     {
       "rule_id": "rule-id",
-      "startLine": "first line of the problematic code snippet",
-      "endLine": "last line of the problematic code snippet",
+      "code": "the exact problematic code snippet",
       "explanation": "why this violates the rule",
       "suggestion": "suggested code fix"
     }
@@ -248,8 +244,8 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
   for (const issue of analysis.issues) {
-    // Find the start and end line numbers in the file
-    const { startLine, endLine } = findLineNumbers(file.patch, issue.startLine, issue.endLine);
+    // Find the line numbers for the problematic code
+    const { startLine, endLine } = findCodeInPatch(file.patch, issue.code);
     if (!startLine || !endLine) {
       console.log(`Could not find line numbers for issue in ${file.filename}`);
       continue;
@@ -303,13 +299,23 @@ ${issue.suggestion}
   }
 }
 
-function findLineNumbers(patch, startCodeLine, endCodeLine) {
-  if (!patch) return { startLine: null, endLine: null };
+function findCodeInPatch(patch, codeSnippet) {
+  if (!patch || !codeSnippet) return { startLine: null, endLine: null };
+
+  // Normalize the code snippet by trimming each line
+  const normalizedSnippet = codeSnippet
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+  
+  if (normalizedSnippet.length === 0) return { startLine: null, endLine: null };
 
   const lines = patch.split("\n");
   let currentLine = 0;
   let startLine = null;
   let endLine = null;
+  let matchedLines = 0;
+  let inMatch = false;
 
   for (const line of lines) {
     if (line.startsWith("@@")) {
@@ -322,35 +328,67 @@ function findLineNumbers(patch, startCodeLine, endCodeLine) {
     }
 
     if (line.startsWith("+") && !line.startsWith("+++")) {
-      // Check if this added line matches our code lines
       const trimmedLine = line.substring(1).trim();
       
-      if (trimmedLine === startCodeLine.trim() && startLine === null) {
+      // Check if this line matches the start of our code snippet
+      if (!inMatch && trimmedLine === normalizedSnippet[0]) {
         startLine = currentLine;
-      }
-      
-      if (trimmedLine === endCodeLine.trim()) {
-        endLine = currentLine;
-      }
-      
-      // If we're looking for a single line (start and end are the same)
-      if (startCodeLine.trim() === endCodeLine.trim() && trimmedLine === startCodeLine.trim()) {
-        startLine = currentLine;
-        endLine = currentLine;
+        matchedLines = 1;
+        inMatch = true;
+        
+        // If the snippet is only one line, we're done
+        if (normalizedSnippet.length === 1) {
+          endLine = currentLine;
+          break;
+        }
+      } 
+      // Check if we're in the middle of matching a multi-line snippet
+      else if (inMatch && matchedLines < normalizedSnippet.length) {
+        if (trimmedLine === normalizedSnippet[matchedLines]) {
+          matchedLines++;
+          
+          // If we've matched all lines, we're done
+          if (matchedLines === normalizedSnippet.length) {
+            endLine = currentLine;
+            break;
+          }
+        } else {
+          // Reset if the sequence is broken
+          inMatch = false;
+          matchedLines = 0;
+          startLine = null;
+          
+          // Check if this line could be the start of a new match
+          if (trimmedLine === normalizedSnippet[0]) {
+            startLine = currentLine;
+            matchedLines = 1;
+            inMatch = true;
+          }
+        }
       }
       
       currentLine++;
     } else if (!line.startsWith("-") && !line.startsWith("---")) {
       // Context lines and other non-removed lines increment the line counter
       currentLine++;
+      
+      // Reset match if we encounter a context line in the middle of matching
+      if (inMatch && matchedLines < normalizedSnippet.length) {
+        inMatch = false;
+        matchedLines = 0;
+        startLine = null;
+      }
     }
   }
 
-  // If we only found one line, use it for both start and end
+  // Handle case where we only matched a single line or partial match
   if (startLine !== null && endLine === null) {
-    endLine = startLine;
-  } else if (startLine === null && endLine !== null) {
-    startLine = endLine;
+    if (normalizedSnippet.length === 1) {
+      endLine = startLine;
+    } else {
+      // We didn't find a complete match
+      return { startLine: null, endLine: null };
+    }
   }
 
   return { startLine, endLine };
