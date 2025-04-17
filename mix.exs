@@ -24,7 +24,7 @@ defmodule JumpAiPipeline.MixProject do
   def application do
     [
       mod: {JumpAiPipeline.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :tools]
     ]
   end
 

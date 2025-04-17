@@ -21,15 +21,21 @@ defmodule JumpAiPipeline.CoverageSummary do
     # Get all modules
     all_modules = :cover.modules()
 
-    IO.inspect(all_modules)
-
     # Print header
     IO.puts("\nCoverage Summary:")
     IO.puts("----------------")
 
     # Calculate and print coverage for each module
-    total_covered = 0
-    total_total = 0
+    {total_covered, total_total} =
+      Enum.reduce(all_modules, {0, 0}, fn module, {acc_covered, acc_total} ->
+        {covered, total} =
+          case :cover.analyse(module, :coverage, :module) do
+            {:ok, {_, {c, t}}} -> {c, t}
+            _ -> {0, 0}
+          end
+
+        {acc_covered + covered, acc_total + total}
+      end)
 
     module_results =
       Enum.map(all_modules, fn module ->
@@ -38,11 +44,6 @@ defmodule JumpAiPipeline.CoverageSummary do
             {:ok, {_, {c, t}}} -> {c, t}
             _ -> {0, 0}
           end
-
-        dbg()
-
-        total_covered = total_covered + covered
-        total_total = total_total + total
 
         percentage = if total > 0, do: covered / total * 100, else: 0.0
 
