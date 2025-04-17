@@ -240,8 +240,14 @@ async function analyzeCodeForTests(
     enhancedFileContent = lines.join('\n');
   }
 
+  // Skip analysis if no coverage data and no code changes
+  if ((!coverageData || !coverageData.lines || coverageData.lines.length === 0) && 
+      (!code || code.trim() === '')) {
+    console.log(`Skipping analysis for ${file.filename}: No coverage data or code changes`);
+    return { suggestions: [] };
+  }
+
   // Create the prompt for Claude
-  // if no coverage data is available we don't need to send the request at all AI!
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
 
