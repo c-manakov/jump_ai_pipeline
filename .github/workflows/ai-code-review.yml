@@ -21,6 +21,12 @@ jobs:
         with:
           node-version: '18'
           
+      - name: Install dependencies
+        run: cd ai-code-analyzer && npm install
+        
+      - name: Build action
+        run: cd ai-code-analyzer && npm run build
+        
       - name: Run AI Code Analyzer
         uses: ./ai-code-analyzer
         with:
