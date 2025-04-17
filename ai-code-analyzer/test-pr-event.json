@@ -1,0 +1,14 @@
+{
+  "pull_request": {
+    "number": 1,
+    "head": {
+      "sha": "sample-sha"
+    }
+  },
+  "repository": {
+    "name": "test-repo",
+    "owner": {
+      "login": "test-owner"
+    }
+  }
+}
