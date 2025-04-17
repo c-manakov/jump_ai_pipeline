@@ -9,8 +9,18 @@ const dotenv = require('dotenv');
 // Load environment variables from .env file
 dotenv.config();
 
+// Check required environment variables
+const requiredEnvVars = ['GITHUB_TOKEN', 'ANTHROPIC_API_KEY', 'GITHUB_REPO', 'GITHUB_OWNER', 'PR_NUMBER'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`Error: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('Please set them in your .env file or environment');
+  process.exit(1);
+}
+
 // Mock @actions/core functions for local testing
-const mockCore = {
+global.core = {
   getInput: (name, options) => {
     if (name === 'github-token') return process.env.GITHUB_TOKEN;
     if (name === 'anthropic-api-key') return process.env.ANTHROPIC_API_KEY;
@@ -19,12 +29,22 @@ const mockCore = {
     return '';
   },
   setFailed: (message) => {
-    console.error(`Action failed: ${message}`);
+    console.error(`::error::${message}`);
+  },
+  info: (message) => {
+    console.log(message);
+  },
+  debug: (message) => {
+    console.log(`DEBUG: ${message}`);
+  },
+  warning: (message) => {
+    console.log(`WARNING: ${message}`);
   }
 };
 
 // Mock @actions/github context for local testing
-const mockGithub = {
+const { Octokit } = require('@octokit/rest');
+global.github = {
   context: {
     repo: {
       owner: process.env.GITHUB_OWNER,
@@ -37,24 +57,9 @@ const mockGithub = {
     }
   },
   getOctokit: (token) => {
-    const { Octokit } = require('@octokit/rest');
     return new Octokit({ auth: token });
   }
 };
-
-// Check required environment variables
-const requiredEnvVars = ['GITHUB_TOKEN', 'ANTHROPIC_API_KEY', 'GITHUB_REPO', 'GITHUB_OWNER', 'PR_NUMBER'];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingEnvVars.length > 0) {
-  console.error(`Error: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  console.error('Please set them in your .env file or environment');
-  process.exit(1);
-}
-
-// Override the modules for local testing
-global.core = mockCore;
-global.github = mockGithub;
 
 // Import the actual action code
 const actionPath = path.join(__dirname, 'src', 'index.js');
