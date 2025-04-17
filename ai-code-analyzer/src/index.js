@@ -277,6 +277,7 @@ ${issue.suggestion}
         body,
         commit_id: latestCommitId,
         path: file.filename,
+        // if startLine and endLine are the same then just use line and no start_line AI!
         start_line: startLine,
         line: endLine
       });
