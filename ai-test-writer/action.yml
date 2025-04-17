@@ -1,0 +1,19 @@
+name: 'AI Test Writer'
+description: 'Analyzes code coverage and suggests test improvements'
+author: 'Your Name'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude access'
+    required: true
+  coverage-path:
+    description: 'Path to the coverage JSON file'
+    default: 'cover/coverage.json'
+    required: false
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
