@@ -54,10 +54,6 @@ jobs:
       - name: Check formatting
         run: mix format --check-formatted
       
-      - name: Run Credo
-        run: mix credo --strict
-        continue-on-error: true
-      
       - name: Generate coverage report
         run: mix test --cover --export-coverage default 
         env:
