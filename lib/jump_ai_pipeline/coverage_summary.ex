@@ -83,13 +83,20 @@ defmodule JumpAiPipeline.CoverageSummary do
     # Collect line-by-line coverage data for each module
     coverage_data = 
       Enum.map(all_modules, fn module ->
+        # this info returns data like so:
+# 
+# module.__info__(:compile) #=> [
+#   version: ~c"8.5.4",
+#   options: [:no_spawn_compiler_process, :from_core, :no_core_prepare,
+#    :no_auto_import],
+#   source: ~c"/home/constantine/Projects/jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/error_json.ex"
+# ]
+# we need to extract the relative path from here and set filepath to it AI!
+        (module).__info__(:compile) |> dbg()
         module_name = module |> to_string() |> String.replace_prefix("Elixir.", "")
         
-        source_file = 
-          case :cover.is_compiled(module) do
-            {:file, file} -> to_string(file)
-            _ -> nil
-          end
+        
+        
         
         # Get line-by-line coverage
         case :cover.analyse(module, :coverage, :line) do
@@ -111,7 +118,7 @@ defmodule JumpAiPipeline.CoverageSummary do
             
             %{
               module: module_name,
-              file: source_file,
+              file: "",
               coverage_percentage: Float.round(percentage, 2),
               covered_lines: covered,
               total_lines: total,
@@ -120,7 +127,7 @@ defmodule JumpAiPipeline.CoverageSummary do
           _ ->
             %{
               module: module_name,
-              file: source_file,
+              file: "",
               coverage_percentage: 0.0,
               covered_lines: 0,
               total_lines: 0,
