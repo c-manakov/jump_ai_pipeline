@@ -270,17 +270,28 @@ ${issue.suggestion}
 
     try {
       // Create a review comment
-      await octokit.rest.pulls.createReviewComment({
-        owner,
-        repo,
-        pull_number: pullNumber,
-        body,
-        commit_id: latestCommitId,
-        path: file.filename,
-        // if startLine and endLine are the same then just use line and no start_line AI!
-        start_line: startLine,
-        line: endLine
-      });
+      if (startLine === endLine) {
+        await octokit.rest.pulls.createReviewComment({
+          owner,
+          repo,
+          pull_number: pullNumber,
+          body,
+          commit_id: latestCommitId,
+          path: file.filename,
+          line: endLine
+        });
+      } else {
+        await octokit.rest.pulls.createReviewComment({
+          owner,
+          repo,
+          pull_number: pullNumber,
+          body,
+          commit_id: latestCommitId,
+          path: file.filename,
+          start_line: startLine,
+          line: endLine
+        });
+      }
 
       console.log(`Posted comment on ${file.filename}:${startLine}-${endLine}`);
     } catch (error) {
