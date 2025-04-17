@@ -13,7 +13,15 @@ defmodule JumpAiPipeline do
     with {:ok, encoded} <- File.read(path),
          {:ok, decoded} <- Base.decode64(encoded) do
       {:ok, String.trim(decoded)}
-# this is a complex else statement
+def open_decoded_file(path) do
+  with {:ok, encoded} <- File.read(path),
+       {:ok, decoded} <- Base.decode64(encoded) do
+      {:ok, String.trim(decoded)}
+    else
+      {:error, _} -> {:error, :badfile}
+      :error -> {:error, :badencoding}
+    end
+end
     else
       {:error, _} -> {:error, :badfile}
       :error -> {:error, :badencoding}
