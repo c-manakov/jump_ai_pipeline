@@ -93,12 +93,9 @@ async function run() {
     // so what we also now need to do before we actually analyze any of the files is as follows:
     // Generate a repository map and find test files for source files
     const repoMap = await generateRepoMap(octokit, owner, repo);
-    console.log(repoMap)
     const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
-    console.log(sourceToTestMap)
-    
+
     console.log("Source to test file mapping:");
-    console.log(sourceToTestMap);
 
     // Process each file in the PR
     for (const file of files) {
@@ -158,7 +155,7 @@ async function run() {
         uncoveredLines,
         fileContent,
         sourceToTestMap,
-        file
+        file,
       );
 
       // Post comments if test suggestions found
@@ -205,26 +202,33 @@ async function analyzeCodeForTests(
   uncoveredLines = [],
   fullFileContent = "",
   sourceToTestMap = {},
-  file = {}
+  file = {},
 ) {
   // Get the corresponding test file if it exists
   let testFileContent = "";
   let testFileExists = false;
-  
+
   if (sourceToTestMap && file.filename) {
     const testFilePath = sourceToTestMap[file.filename];
     if (testFilePath) {
       try {
-        const resolvedTestPath = path.resolve(process.cwd(), "..", testFilePath);
+        const resolvedTestPath = path.resolve(
+          process.cwd(),
+          "..",
+          testFilePath,
+        );
         testFileContent = fs.readFileSync(resolvedTestPath, "utf8");
         testFileExists = true;
         console.log(`Found and loaded test file: ${testFilePath}`);
       } catch (error) {
-        console.log(`Test file exists in mapping but couldn't be read: ${error.message}`);
+        console.log(
+          `Test file exists in mapping but couldn't be read: ${error.message}`,
+        );
       }
     }
   }
-  
+
+  // so the uncovered line numbers are actually pretty useless for ai, so what we need is to mark the lines with a comment in the end like "some code #uncovered" and instruct the ai that those lines needs to be covered AI!
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -293,6 +297,8 @@ If no test suggestions are needed, return {"suggestions": []}.
 ${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, suggest additions that fit with the existing test structure."}
 `;
 
+  console.log(prompt);
+
   // Call Claude API
   const message = await anthropic.messages.create({
     model: "claude-3-7-sonnet-latest",
@@ -348,9 +354,13 @@ ${suggestion.explanation}
 \`\`\`elixir
 ${suggestion.test_code}
 \`\`\`
-${analysis.create_new_file ? `
+${
+  analysis.create_new_file
+    ? `
 ### Note: This requires creating a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
-` : ""}`;
+`
+    : ""
+}`;
 
     try {
       // Create a review comment at the end of the file
@@ -400,26 +410,31 @@ function getLastLineNumber(patch) {
  */
 async function generateRepoMap(octokit, owner, repo) {
   console.log("Generating repository file map...");
-  
+
   try {
     // Always use the filesystem since the action has access to the repo
     {
       const files = [];
-      const rootDir = path.resolve(process.cwd(), '..');
-      
+      const rootDir = path.resolve(process.cwd(), "..");
+
       // Simple recursive function to get all files
       const getFilesRecursively = (dir) => {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
-        
+
         for (const entry of entries) {
           const fullPath = path.join(dir, entry.name);
           const relativePath = path.relative(rootDir, fullPath);
-          
+
           // Skip hidden directories and node_modules
-          if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '_build' || entry.name === 'deps') {
+          if (
+            entry.name.startsWith(".") ||
+            entry.name === "node_modules" ||
+            entry.name === "_build" ||
+            entry.name === "deps"
+          ) {
             continue;
           }
-          
+
           if (entry.isDirectory()) {
             getFilesRecursively(fullPath);
           } else if (entry.isFile()) {
@@ -427,24 +442,24 @@ async function generateRepoMap(octokit, owner, repo) {
           }
         }
       };
-      
+
       getFilesRecursively(rootDir);
       console.log(`Found ${files.length} files in the repository`);
       return files;
     }
-    
+
     // For GitHub Actions, use the GitHub API
     const { data: repoContent } = await octokit.rest.git.getTree({
       owner,
       repo,
-      tree_sha: 'HEAD',
-      recursive: '1'
+      tree_sha: "HEAD",
+      recursive: "1",
     });
-    
+
     const files = repoContent.tree
-      .filter(item => item.type === 'blob')
-      .map(item => item.path);
-    
+      .filter((item) => item.type === "blob")
+      .map((item) => item.path);
+
     console.log(`Found ${files.length} files in the repository`);
     return files;
   } catch (error) {
@@ -458,39 +473,49 @@ async function generateRepoMap(octokit, owner, repo) {
  */
 async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log("Mapping source files to test files...");
-  
+
   // Filter to only include Elixir files
-  const elixirFiles = repoFiles.filter(file => 
-    file.endsWith('.ex') || file.endsWith('.exs')
+  const elixirFiles = repoFiles.filter(
+    (file) => file.endsWith(".ex") || file.endsWith(".exs"),
   );
-  
+
   // Separate test files from source files
-  const testFiles = elixirFiles.filter(file => 
-    file.includes('_test.exs') || file.includes('/test/') || file.startsWith('test/')
+  const testFiles = elixirFiles.filter(
+    (file) =>
+      file.includes("_test.exs") ||
+      file.includes("/test/") ||
+      file.startsWith("test/"),
   );
-  const sourceFiles = elixirFiles.filter(file => 
-    !file.includes('_test.exs') && !file.includes('/test/') && !file.startsWith('test/')
+  const sourceFiles = elixirFiles.filter(
+    (file) =>
+      !file.includes("_test.exs") &&
+      !file.includes("/test/") &&
+      !file.startsWith("test/"),
   );
-  
-  console.log(`Found ${sourceFiles.length} source files and ${testFiles.length} test files`);
-  console.log(sourceFiles)
-  console.log(testFiles)
-  
+
+  console.log(
+    `Found ${sourceFiles.length} source files and ${testFiles.length} test files`,
+  );
+  console.log(sourceFiles);
+  console.log(testFiles);
+
   // If there are too many files, we might need to process them in batches
   if (sourceFiles.length > 150) {
-    console.log("Too many source files to process at once, using heuristic matching instead");
+    console.log(
+      "Too many source files to process at once, using heuristic matching instead",
+    );
     return createHeuristicSourceToTestMap(sourceFiles, testFiles);
   }
-  
+
   // Create a prompt for Claude to map source files to test files
   const prompt = `
 You are a code organization expert. I need you to map source files to their corresponding test files in an Elixir project.
 
 # Source files:
-${sourceFiles.join('\n')}
+${sourceFiles.join("\n")}
 
 # Test files:
-${testFiles.join('\n')}
+${testFiles.join("\n")}
 
 For each source file, identify the most likely test file that would contain tests for it.
 Follow these Elixir conventions:
@@ -515,7 +540,8 @@ Example:
     const message = await anthropic.messages.create({
       model: "claude-3-7-sonnet-latest",
       max_tokens: 4000,
-      system: "You are a code organization assistant that maps source files to test files.",
+      system:
+        "You are a code organization assistant that maps source files to test files.",
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -542,13 +568,13 @@ Example:
  */
 function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
   const sourceToTestMap = {};
-  
+
   for (const sourceFile of sourceFiles) {
     // Convert lib/app/module.ex to test/app/module_test.exs
     let expectedTestFile = sourceFile
-      .replace(/^lib\//, 'test/')
-      .replace(/\.ex$/, '_test.exs');
-    
+      .replace(/^lib\//, "test/")
+      .replace(/\.ex$/, "_test.exs");
+
     // Check if the expected test file exists
     if (testFiles.includes(expectedTestFile)) {
       sourceToTestMap[sourceFile] = expectedTestFile;
@@ -557,7 +583,7 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
       sourceToTestMap[sourceFile] = null;
     }
   }
-  
+
   return sourceToTestMap;
 }
 
