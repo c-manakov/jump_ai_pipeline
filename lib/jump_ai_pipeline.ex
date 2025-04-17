@@ -20,4 +20,8 @@ defmodule JumpAiPipeline do
       :error -> {:error, :badencoding}
     end
   end
+
+  def some_new_interesting_function() do
+    IO.inspect("hehe")
+  end
 end
