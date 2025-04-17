@@ -78,3 +78,6 @@ jobs:
           name: coverage-report
           path: cover/
           retention-days: 14
+
+          # add the call to the new action here AI!
+
