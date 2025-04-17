@@ -108,6 +108,8 @@ defmodule JumpAiPipeline.CoverageSummary do
             %{
               module: module_name,
               coverage_percentage: Float.round(percentage, 2),
+              covered_lines: covered,
+              total_lines: total,
               lines: lines_data
             }
           _ ->
