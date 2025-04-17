@@ -186,7 +186,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
 3. Suggest a specific code change to fix the issue, but only do that if the suggestion is meaningful and changes the code. It's completely okay to not provide a suggestion if it's unclear or the code is the same.
-4. Include the line number or code snippet where the violation occurs
+4. Include the starting line number and the ending line number for where the violation occurs and the possible suggestion should be applied. If the code snippet is one line then they can be the same.
 5. The suggestion should be actual code, while the explanation should go into explanation
 6. Try to keep the formatting correct
 
@@ -195,7 +195,8 @@ Format your response as JSON:
   "issues": [
     {
       "rule_id": "rule-id",
-      "line": "problematic code line",
+      "startLine": "first line of the problematic code snippet",
+      "endLine": "last line of the problematic code snippet",
       "explanation": "why this violates the rule",
       "suggestion": "suggested code fix"
     }
@@ -273,7 +274,8 @@ ${issue.suggestion}
         body,
         commit_id: latestCommitId,
         path: file.filename,
-        line: lineNumber,
+        start_line: lineNumber,
+        line: endLineNumber
       });
 
       console.log(`Posted comment on ${file.filename}:${lineNumber}`);
@@ -284,6 +286,7 @@ ${issue.suggestion}
   }
 }
 
+// modify this function so that it returns both start line and finish line AI!
 function findLineNumber(patch, codeLine) {
   if (!patch) return null;
 
