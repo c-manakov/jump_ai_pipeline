@@ -85,15 +85,19 @@ defmodule JumpAiPipeline.CoverageSummary do
       Enum.map(all_modules, fn module ->
         module_name = module |> to_string() |> String.replace_prefix("Elixir.", "")
         
+        # Get source file path
+        source_file = 
+          case :cover.is_compiled(module) do
+            {:file, file} -> to_string(file)
+            _ -> nil
+          end
+        
         # Get line-by-line coverage
         case :cover.analyse(module, :coverage, :line) do
           {:ok, lines} ->
+            # Convert to more compact format: [[line_number, covered?], ...]
             lines_data = Enum.map(lines, fn {{_, line_num}, count} ->
-              %{
-                line: line_num,
-                count: count,
-                covered: count > 0
-              }
+              [line_num, count > 0]
             end)
             
             # Calculate module coverage percentage
@@ -107,23 +111,19 @@ defmodule JumpAiPipeline.CoverageSummary do
             
             %{
               module: module_name,
+              file: source_file,
               coverage_percentage: Float.round(percentage, 2),
               covered_lines: covered,
               total_lines: total,
-              lines: Enum.map(lines_data, fn line -> 
-                # Ensure all values are JSON-encodable
-                Map.new(line, fn {k, v} -> 
-                  case v do
-                    {a, b} -> {k, [a, b]} # Convert any tuples to lists
-                    _ -> {k, v}
-                  end
-                end)
-              end)
+              lines: lines_data
             }
           _ ->
             %{
               module: module_name,
+              file: source_file,
               coverage_percentage: 0.0,
+              covered_lines: 0,
+              total_lines: 0,
               lines: []
             }
         end
