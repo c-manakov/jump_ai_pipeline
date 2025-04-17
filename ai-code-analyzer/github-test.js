@@ -5,6 +5,8 @@ const path = require('path');
 const glob = require('glob');
 const dotenv = require('dotenv');
 
+// this file should not do a whole separate thing, it should run the actual action that we have in index.js AI!
+
 // Load environment variables from .env file
 dotenv.config();
 
@@ -34,7 +36,7 @@ async function loadRules(rulesPath) {
   const rules = [];
   
   // Find all markdown files in the rules directory
-  const files = glob.sync(`${rulesPath}/**/*.md`);
+  const files = glob.sync(`../${rulesPath}/**/*.md`);
   
   for (const file of files) {
     const content = fs.readFileSync(file, 'utf8');
