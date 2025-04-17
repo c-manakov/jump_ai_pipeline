@@ -13,14 +13,14 @@ async function run() {
     console.log("Current directory:", process.cwd());
     
     // For GitHub Actions:
-    // const githubToken = core.getInput('github-token', { required: true });
-    // const anthropicApiKey = core.getInput('anthropic-api-key') || process.env.ANTHROPIC_API_KEY;
-    // const rulesPath = core.getInput('rules-path') || '.ai-code-rules';
+    const githubToken = core.getInput('github-token', { required: true });
+    const anthropicApiKey = core.getInput('anthropic-api-key') || process.env.ANTHROPIC_API_KEY;
+    const rulesPath = core.getInput('rules-path') || '.ai-code-rules';
     
     // For local development:
-    const githubToken = process.env.GITHUB_TOKEN;
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const rulesPath = process.env.RULES_PATH || '../.ai-code-rules';
+    // const githubToken = process.env.GITHUB_TOKEN;
+    // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    // const rulesPath = process.env.RULES_PATH || '../.ai-code-rules';
     
     if (!githubToken) {
       throw new Error('GitHub token is required. Please set GITHUB_TOKEN environment variable.');
@@ -36,17 +36,17 @@ async function run() {
     console.log("- rules-path:", rulesPath);
     
     // For GitHub Actions:
-    // const octokit = github.getOctokit(githubToken);
-    // const context = github.context;
-    // const { owner, repo } = context.repo;
-    // const pullNumber = context.payload.pull_request?.number;
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+    const { owner, repo } = context.repo;
+    const pullNumber = context.payload.pull_request?.number;
     
     // For local development:
-    const { Octokit } = require('@octokit/rest');
-    const octokit = new Octokit({ auth: githubToken });
-    const anthropic = new Anthropic({
-      apiKey: anthropicApiKey,
-    });
+    // const { Octokit } = require('@octokit/rest');
+    // const octokit = new Octokit({ auth: githubToken });
+    // const anthropic = new Anthropic({
+    //   apiKey: anthropicApiKey,
+    // });
     
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;
