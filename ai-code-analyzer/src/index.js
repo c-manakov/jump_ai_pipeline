@@ -13,7 +13,9 @@ async function run() {
     console.log("Current directory:", process.cwd());
 
     // For GitHub Actions:
-    const githubToken = core.getInput("github-token", { required: true }) || process.env.GITHUB_TOKEN; 
+    const githubToken =
+      core.getInput("github-token", { required: true }) ||
+      process.env.GITHUB_TOKEN;
     const anthropicApiKey =
       core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
     const rulesPath = core.getInput("rules-path") || ".ai-code-rules";
@@ -183,9 +185,10 @@ ${code}
 Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
-3. Suggest a specific code change to fix the issue
+3. Suggest a specific code change to fix the issue, but only do that if the suggestion is meaningful and changes the code. It's completely okay to not provide a suggestion if it's unclear or the code is the same.
 4. Include the line number or code snippet where the violation occurs
 5. The suggestion should be actual code, while the explanation should go into explanation
+6. Try to keep the formatting correct
 
 Format your response as JSON:
 {
@@ -237,10 +240,10 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
     repo,
     pull_number: pullNumber,
   });
-  
+
   const latestCommitId = pullRequest.head.sha;
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
-  
+
   for (const issue of analysis.issues) {
     // Find the line in the file
     const lineNumber = findLineNumber(file.patch, issue.line);
@@ -257,8 +260,10 @@ ${issue.suggestion}
 
 [View rule](${issue.rule_id}.md)`;
 
-    console.log(`Posting comment on ${file.filename}:${lineNumber} with commit ID ${latestCommitId}`);
-    
+    console.log(
+      `Posting comment on ${file.filename}:${lineNumber} with commit ID ${latestCommitId}`,
+    );
+
     try {
       // Create a review comment
       await octokit.rest.pulls.createReviewComment({
