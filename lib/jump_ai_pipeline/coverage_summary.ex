@@ -110,7 +110,15 @@ defmodule JumpAiPipeline.CoverageSummary do
               coverage_percentage: Float.round(percentage, 2),
               covered_lines: covered,
               total_lines: total,
-              lines: lines_data
+              lines: Enum.map(lines_data, fn line -> 
+                # Ensure all values are JSON-encodable
+                Map.new(line, fn {k, v} -> 
+                  case v do
+                    {a, b} -> {k, [a, b]} # Convert any tuples to lists
+                    _ -> {k, v}
+                  end
+                end)
+              end)
             }
           _ ->
             %{
