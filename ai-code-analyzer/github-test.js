@@ -19,6 +19,7 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
+// this mocking with global won't work, what we can do is we can comment out the lines in the index file that get all those inputs and just hardcode them for testing, it's fine AI!
 // Mock @actions/core functions for local testing
 global.core = {
   getInput: (name, options) => {
