@@ -228,17 +228,28 @@ async function analyzeCodeForTests(
     }
   }
 
-  // so the uncovered line numbers are actually pretty useless for ai, so what we need is to mark the lines with a comment in the end like "some code #uncovered" and instruct the ai that those lines needs to be covered AI!
+  // Enhance the full file content by marking uncovered lines
+  let enhancedFileContent = fullFileContent;
+  if (fullFileContent && uncoveredLines.length > 0) {
+    const lines = fullFileContent.split('\n');
+    uncoveredLines.forEach(lineNum => {
+      if (lineNum > 0 && lineNum <= lines.length) {
+        lines[lineNum - 1] = lines[lineNum - 1] + ' # UNCOVERED';
+      }
+    });
+    enhancedFileContent = lines.join('\n');
+  }
+
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
 
 ${
-  fullFileContent
+  enhancedFileContent
     ? `
-# Full file content for context:
+# Full file content for context (lines marked with "# UNCOVERED" need test coverage):
 \`\`\`
-${fullFileContent}
+${enhancedFileContent}
 \`\`\`
 `
     : ""
@@ -274,7 +285,7 @@ ${uncoveredLines.length > 0 ? uncoveredLines.join(", ") : "None detected"}
     : "# No coverage data available for this file."
 }
 
-Analyze the code and suggest tests that would improve coverage. For each suggestion:
+Analyze the code and suggest tests that would improve coverage. Pay special attention to lines marked with "# UNCOVERED" as these need test coverage. For each suggestion:
 1. Identify the specific function or code block that needs testing
 2. Explain why testing this is important
 3. Provide a specific test case implementation that would test this code
