@@ -7,7 +7,7 @@ defmodule JumpAiPipeline.CoverageSummary do
   Prints a summary of the test coverage to stdout.
   """
   def print do
-    coverage_files = Path.wildcard("cover/*.coverdata")
+    coverage_files = Path.wildcard("cover/default.coverdata")
 
     if Enum.empty?(coverage_files) do
       IO.puts("No coverage data found. Run tests with coverage first.")
