@@ -13,7 +13,7 @@ async function run() {
     console.log("Current directory:", process.cwd());
 
     // For GitHub Actions:
-    const githubToken = core.getInput("github-token", { required: true });
+    const githubToken = core.getInput("github-token", { required: true }) || process.env.GITHUB_TOKEN; 
     const anthropicApiKey =
       core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
     const rulesPath = core.getInput("rules-path") || ".ai-code-rules";
