@@ -92,6 +92,10 @@ async function run() {
 
       // Find coverage data for this file
       const fileCoverage = coverageData.find(item => item.file === file.filename);
+
+      // I think we need to extract all the lines in a given file, and each uncovered line AI!
+      console.log(fileCoverage)
+      return
       
       // Analyze code with Claude and suggest tests
       const analysis = await analyzeCodeForTests(
