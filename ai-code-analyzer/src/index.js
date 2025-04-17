@@ -12,7 +12,12 @@ async function run() {
     console.log("Node version:", process.version);
     console.log("Current directory:", process.cwd());
     
-    // DEVELOPMENT: Hardcoded values for testing
+    // For GitHub Actions:
+    // const githubToken = core.getInput('github-token', { required: true });
+    // const anthropicApiKey = core.getInput('anthropic-api-key') || process.env.ANTHROPIC_API_KEY;
+    // const rulesPath = core.getInput('rules-path') || '.ai-code-rules';
+    
+    // For local development:
     const githubToken = process.env.GITHUB_TOKEN;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
     const rulesPath = process.env.RULES_PATH || '.ai-code-rules';
@@ -30,14 +35,19 @@ async function run() {
     console.log("- anthropic-api-key:", anthropicApiKey ? "✓ (set)" : "✗ (not set)");
     console.log("- rules-path:", rulesPath);
     
-    // Initialize clients
+    // For GitHub Actions:
+    // const octokit = github.getOctokit(githubToken);
+    // const context = github.context;
+    // const { owner, repo } = context.repo;
+    // const pullNumber = context.payload.pull_request?.number;
+    
+    // For local development:
     const { Octokit } = require('@octokit/rest');
     const octokit = new Octokit({ auth: githubToken });
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
     });
     
-    // DEVELOPMENT: Hardcoded PR details for testing
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;
     const pullNumber = parseInt(process.env.PR_NUMBER, 10);
