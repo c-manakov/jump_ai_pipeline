@@ -92,16 +92,23 @@ async function run() {
 
       // Find coverage data for this file
       const fileCoverage = coverageData.find(item => item.file === file.filename);
-
-      // I think we need to extract all the lines in a given file, and each uncovered line AI!
-      console.log(fileCoverage)
-      return
+      
+      // Extract uncovered lines from coverage data
+      let uncoveredLines = [];
+      if (fileCoverage && fileCoverage.lines) {
+        uncoveredLines = fileCoverage.lines
+          .filter(line => line[1] === false)  // Get only uncovered lines
+          .map(line => line[0]);              // Extract line numbers
+        
+        console.log(`Found ${uncoveredLines.length} uncovered lines in ${file.filename}`);
+      }
       
       // Analyze code with Claude and suggest tests
       const analysis = await analyzeCodeForTests(
         anthropic,
         addedLines.join("\n"),
-        fileCoverage
+        fileCoverage,
+        uncoveredLines
       );
 
       // Post comments if test suggestions found
@@ -134,7 +141,7 @@ function extractAddedLines(patch) {
   return addedLines;
 }
 
-async function analyzeCodeForTests(anthropic, code, coverageData) {
+async function analyzeCodeForTests(anthropic, code, coverageData, uncoveredLines = []) {
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -149,6 +156,9 @@ ${coverageData ? `
 \`\`\`json
 ${JSON.stringify(coverageData, null, 2)}
 \`\`\`
+
+# Uncovered lines:
+${uncoveredLines.length > 0 ? uncoveredLines.join(', ') : 'None detected'}
 ` : '# No coverage data available for this file.'}
 
 Analyze the code and suggest tests that would improve coverage. For each suggestion:
