@@ -247,7 +247,6 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
-  // add test file path to the prompt and instruct the ai to include it if it requests an addition AI! 
   // Create the prompt for Claude
   const prompt = `
 You are an expert automated QA engineer that helps developers improve their test coverage.
@@ -278,6 +277,9 @@ ${testFileContent}
 \`\`\`
 ${code}
 \`\`\`
+
+# Test file path:
+${analysis.test_file_path || sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, '').replace(/\.ex$/, '_test.exs')}`}
 
 Analyze the code and suggest tests that would improve coverage. Focus ONLY on uncovered lines that were added in the current commit (these are the lines in the "Code changes to analyze" section that are also marked with "# UNCOVERED" in the full file content).
 
