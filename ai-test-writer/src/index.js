@@ -247,6 +247,7 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
+  // instruct the ai to only create tests for uncovered lines that were added in this commit, if there's something uncovered in this file but it wasn't added then no tests should be created for it AI!
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
