@@ -231,19 +231,23 @@ async function analyzeCodeForTests(
   // Enhance the full file content by marking uncovered lines
   let enhancedFileContent = fullFileContent;
   if (fullFileContent && uncoveredLines.length > 0) {
-    const lines = fullFileContent.split('\n');
-    uncoveredLines.forEach(lineNum => {
+    const lines = fullFileContent.split("\n");
+    uncoveredLines.forEach((lineNum) => {
       if (lineNum > 0 && lineNum <= lines.length) {
-        lines[lineNum - 1] = lines[lineNum - 1] + ' # UNCOVERED';
+        lines[lineNum - 1] = lines[lineNum - 1] + " # UNCOVERED";
       }
     });
-    enhancedFileContent = lines.join('\n');
+    enhancedFileContent = lines.join("\n");
   }
 
   // Skip analysis if no coverage data and no code changes
-  if ((!coverageData || !coverageData.lines || coverageData.lines.length === 0) && 
-      (!code || code.trim() === '')) {
-    console.log(`Skipping analysis for ${file.filename}: No coverage data or code changes`);
+  if (
+    (!coverageData || !coverageData.lines || coverageData.lines.length === 0) &&
+    (!code || code.trim() === "")
+  ) {
+    console.log(
+      `Skipping analysis for ${file.filename}: No coverage data or code changes`,
+    );
     return { suggestions: [] };
   }
 
@@ -279,11 +283,11 @@ ${code}
 \`\`\`
 
 # Test file path:
-${analysis.test_file_path || sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, '').replace(/\.ex$/, '_test.exs')}`}
+${sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, "").replace(/\.ex$/, "_test.exs")}`}
 
 Analyze the code and suggest tests that would improve coverage. Focus ONLY on uncovered lines that were added in the current commit (these are the lines in the "Code changes to analyze" section that are also marked with "# UNCOVERED" in the full file content).
 
-Do NOT create tests for uncovered lines that weren't part of this commit. For each suggestion:
+Do NOT create tests for uncovered lines that aren't in the code changes provided above. For each suggestion:
 1. Identify the specific function or code block that needs testing
 2. Provide a specific test case implementation that would test this code
 3. Make sure the test follows best practices and is well-structured
@@ -291,7 +295,7 @@ Do NOT create tests for uncovered lines that weren't part of this commit. For ea
 Format your response as JSON:
 {
   "create_new_file": ${!testFileExists},
-  "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, '').replace(/\.ex$/, '_test.exs')}`}",
+  "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, "").replace(/\.ex$/, "_test.exs")}`}",
   "suggestions": [
     {
       "target": "name of function or code block to test",
@@ -353,6 +357,7 @@ async function postTestSuggestions(
   const latestCommitId = pullRequest.head.sha;
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
+  // also add the path to the existing test file if it exists AI!
   for (const suggestion of analysis.suggestions) {
     const body = `## AI Test Suggestion for: ${suggestion.target}
 
@@ -483,9 +488,7 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log("Mapping source files to test files...");
 
   // Filter to only include Elixir files
-  const elixirFiles = repoFiles.filter(
-    (file) => file.endsWith(".ex") 
-  );
+  const elixirFiles = repoFiles.filter((file) => file.endsWith(".ex"));
 
   // Separate test files from source files
   const testFiles = elixirFiles.filter(
