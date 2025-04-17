@@ -20,7 +20,7 @@ async function run() {
     // For local development:
     const githubToken = process.env.GITHUB_TOKEN;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const rulesPath = process.env.RULES_PATH || '.ai-code-rules';
+    const rulesPath = process.env.RULES_PATH || '../.ai-code-rules';
     
     if (!githubToken) {
       throw new Error('GitHub token is required. Please set GITHUB_TOKEN environment variable.');
@@ -182,7 +182,7 @@ If no issues are found, return {"issues": []}.
 
   // Call Claude API
   const message = await anthropic.messages.create({
-    model: "claude-3-opus-20240229",
+    model: "claude-3-7-sonnet-latest",
     max_tokens: 4000,
     system: "You are a code review assistant that identifies violations of coding rules and suggests fixes.",
     messages: [
@@ -225,6 +225,7 @@ ${issue.suggestion}
 
 [View rule](${issue.rule_id}.md)`;
     
+    console.log(octokit.rest.pulls)
     // Create a review comment
     await octokit.rest.pulls.createReviewComment({
       owner,
