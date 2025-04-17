@@ -157,6 +157,8 @@ async function run() {
         fileCoverage,
         uncoveredLines,
         fileContent,
+        sourceToTestMap,
+        file
       );
 
       // Post comments if test suggestions found
@@ -204,8 +206,27 @@ async function analyzeCodeForTests(
   coverageData,
   uncoveredLines = [],
   fullFileContent = "",
+  sourceToTestMap = {},
+  file = {}
 ) {
-  // now since we have our sourceToTestMap let's also provide the existing test file (if it exists) to the AI so that it can use  it as context and suggest updates to the existing file. If the file doesn't exist we need to ask the AI to instruct the user to create the file AI!
+  // Get the corresponding test file if it exists
+  let testFileContent = "";
+  let testFileExists = false;
+  
+  if (sourceToTestMap && file.filename) {
+    const testFilePath = sourceToTestMap[file.filename];
+    if (testFilePath) {
+      try {
+        const resolvedTestPath = path.resolve(process.cwd(), "..", testFilePath);
+        testFileContent = fs.readFileSync(resolvedTestPath, "utf8");
+        testFileExists = true;
+        console.log(`Found and loaded test file: ${testFilePath}`);
+      } catch (error) {
+        console.log(`Test file exists in mapping but couldn't be read: ${error.message}`);
+      }
+    }
+  }
+  
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -219,6 +240,17 @@ ${fullFileContent}
 \`\`\`
 `
     : ""
+}
+
+${
+  testFileExists
+    ? `
+# Existing test file content:
+\`\`\`
+${testFileContent}
+\`\`\`
+`
+    : "# No existing test file found for this module."
 }
 
 # Code changes to analyze:
@@ -248,6 +280,8 @@ Analyze the code and suggest tests that would improve coverage. For each suggest
 
 Format your response as JSON:
 {
+  "create_new_file": ${!testFileExists},
+  "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : ""}",
   "suggestions": [
     {
       "target": "name of function or code block to test",
@@ -258,6 +292,7 @@ Format your response as JSON:
 }
 
 If no test suggestions are needed, return {"suggestions": []}.
+${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, suggest additions that fit with the existing test structure."}
 `;
 
   // Call Claude API
@@ -315,7 +350,9 @@ ${suggestion.explanation}
 \`\`\`elixir
 ${suggestion.test_code}
 \`\`\`
-`;
+${analysis.create_new_file ? `
+### Note: This requires creating a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
+` : ""}`;
 
     try {
       // Create a review comment at the end of the file
