@@ -75,6 +75,14 @@ async function main() {
         port: "8080",
       },
       verbose: true,
+      stdout: process.stdout,
+      stderr: process.stderr,
+      env: {
+        RUNNER_DEBUG: "1",
+        ACTIONS_STEP_DEBUG: "true",
+        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+        GITHUB_TOKEN: "fake-token"
+      }
     });
 
     // Display results

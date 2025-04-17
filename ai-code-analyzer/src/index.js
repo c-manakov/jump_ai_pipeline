@@ -8,11 +8,18 @@ const { marked } = require('marked');
 
 async function run() {
   try {
-    console.log("starting")
+    console.log("=== AI Code Analyzer starting ===");
+    console.log("Node version:", process.version);
+    console.log("Current directory:", process.cwd());
     // Get inputs
     const githubToken = core.getInput('github-token', { required: true });
     const anthropicApiKey = core.getInput('anthropic-api-key', { required: true });
     const rulesPath = core.getInput('rules-path') || '.ai-code-rules';
+    
+    console.log("Inputs received:");
+    console.log("- github-token:", githubToken ? "✓ (set)" : "✗ (not set)");
+    console.log("- anthropic-api-key:", anthropicApiKey ? "✓ (set)" : "✗ (not set)");
+    console.log("- rules-path:", rulesPath);
     
     // Initialize clients
     const octokit = github.getOctokit(githubToken);
@@ -22,8 +29,14 @@ async function run() {
     
     // Get PR details
     const context = github.context;
+    console.log("GitHub context:", JSON.stringify(context, null, 2));
+    
     const { owner, repo } = context.repo;
-    const pullNumber = context.payload.pull_request.number;
+    const pullNumber = context.payload.pull_request?.number;
+    
+    if (!pullNumber) {
+      throw new Error("No pull request number found in the context. Make sure this action is triggered by a pull request event.");
+    }
     
     console.log(`Processing PR #${pullNumber} in ${owner}/${repo}`);
     
@@ -65,6 +78,8 @@ async function run() {
     console.log('AI code analysis completed');
     
   } catch (error) {
+    console.error("Action failed with error:", error);
+    console.error("Stack trace:", error.stack);
     core.setFailed(`Action failed: ${error.message}`);
   }
 }
