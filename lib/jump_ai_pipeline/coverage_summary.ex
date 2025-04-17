@@ -14,12 +14,14 @@ defmodule JumpAiPipeline.CoverageSummary do
       System.halt(1)
     end
 
+    dbg(coverage_files)
+
     # Import the coverage data
     :cover.start()
-    Enum.each(coverage_files, &:cover.import/1)
+    Enum.map(coverage_files, &:cover.import/1)
 
     # Get all modules
-    all_modules = :cover.modules()
+    all_modules = :cover.imported_modules()
 
     # Print header
     IO.puts("\nCoverage Summary:")
