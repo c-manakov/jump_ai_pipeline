@@ -93,6 +93,7 @@ async function run() {
     // so what we also now need to do before we actually analyze any of the files is as follows:
     // Generate a repository map and find test files for source files
     const repoMap = await generateRepoMap(octokit, owner, repo);
+    console.log(repoMap)
     const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
     console.log(sourceToTestMap)
     
@@ -111,7 +112,6 @@ async function run() {
 
       // Extract added lines
       const addedLines = extractAddedLines(file.patch);
-      console.log(addedLines)
       if (addedLines.length === 0) continue;
 
       console.log(
@@ -188,14 +188,12 @@ function extractAddedLines(patch) {
   const lines = patch.split("\n");
   const addedLines = [];
 
-  console.log(lines)
   for (const line of lines) {
     if (line.startsWith("+") && !line.startsWith("+++")) {
       // Remove the leading '+' and add to our collection
       addedLines.push(line.substring(1));
     }
   }
-  console.log(addedLines)
 
   return addedLines;
 }
@@ -404,6 +402,7 @@ async function generateRepoMap(octokit, owner, repo) {
   console.log("Generating repository file map...");
   
   try {
+    // we should always use the filesystem actually since this action will have access to the repo  AI!
     // For local development, we can use the filesystem
     if (process.env.NODE_ENV === 'development') {
       const files = [];
@@ -475,6 +474,8 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   );
   
   console.log(`Found ${sourceFiles.length} source files and ${testFiles.length} test files`);
+  console.log(sourceFiles)
+  console.log(testFiles)
   
   // If there are too many files, we might need to process them in batches
   if (sourceFiles.length > 150) {
