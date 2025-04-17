@@ -247,6 +247,7 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
+  // also add the file path of the test file so that AI can write where to add the test AI!
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -480,7 +481,7 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
 
   // Filter to only include Elixir files
   const elixirFiles = repoFiles.filter(
-    (file) => file.endsWith(".ex") || file.endsWith(".exs"),
+    (file) => file.endsWith(".ex") 
   );
 
   // Separate test files from source files
