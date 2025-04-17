@@ -59,8 +59,7 @@ jobs:
         continue-on-error: true
       
       - name: Generate coverage report
-        run: mix coveralls.github
+        run: mix test --cover
         env:
           MIX_ENV: test
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test

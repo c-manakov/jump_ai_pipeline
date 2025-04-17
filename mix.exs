@@ -10,14 +10,7 @@ defmodule JumpAiPipeline.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      test_coverage: [tool: ExCoveralls, export: "cov"],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test,
-        "coveralls.github": :test
-      ]
+      test_coverage: [summary: [threshold: 80]]
     ]
   end
 
@@ -65,8 +58,7 @@ defmodule JumpAiPipeline.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.5"},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:bandit, "~> 1.5"}
     ]
   end
 
@@ -82,7 +74,7 @@ defmodule JumpAiPipeline.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls.json"],
+      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "test --cover"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind jump_ai_pipeline", "esbuild jump_ai_pipeline"],
       "assets.deploy": [
