@@ -9,7 +9,12 @@ defmodule JumpAiPipeline.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [
+        summary: [threshold: 80],
+        detail: true,
+        output: "cover"
+      ]
     ]
   end
 
@@ -19,7 +24,7 @@ defmodule JumpAiPipeline.MixProject do
   def application do
     [
       mod: {JumpAiPipeline.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :tools]
     ]
   end
 
@@ -73,6 +78,13 @@ defmodule JumpAiPipeline.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      "test.coverage": [
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "test --cover --export-coverage default"
+      ],
+      "coverage.summary": ["run -e 'JumpAiPipeline.CoverageSummary.print()'"],
+      "coverage.json": ["run -e 'JumpAiPipeline.CoverageSummary.export_json()'"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind jump_ai_pipeline", "esbuild jump_ai_pipeline"],
       "assets.deploy": [

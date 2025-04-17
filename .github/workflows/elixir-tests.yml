@@ -1,0 +1,89 @@
+name: Elixir Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    
+    services:
+      db:
+        image: postgres:14
+        ports: ['5432:5432']
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.14.x'
+          otp-version: '25.x'
+      
+      - name: Restore dependencies cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+      
+      - name: Install dependencies
+        run: mix deps.get
+      
+      - name: Run tests
+        run: mix test
+        env:
+          MIX_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
+      
+      - name: Generate coverage report
+        run: mix test --cover --export-coverage default 
+        env:
+          MIX_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
+      
+      - name: Generate coverage summary
+        run: |
+          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          mix coverage.summary | tee /dev/stderr >> $GITHUB_STEP_SUMMARY
+        env:
+          MIX_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
+          
+      - name: Generate coverage json
+        run: mix coverage.json 
+        env:
+          MIX_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
+      
+      - name: Archive coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: cover/
+          retention-days: 14
+          
+      - name: AI Test Writer
+        uses: ./ai-test-writer
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          coverage-path: cover/coverage.json
+
