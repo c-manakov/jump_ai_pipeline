@@ -65,7 +65,7 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/jump_ai_pipeline_test
       
       - name: Archive coverage results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: cover/
