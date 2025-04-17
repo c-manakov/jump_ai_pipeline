@@ -92,6 +92,8 @@ async function run() {
 
       // Find coverage data for this file
       const fileCoverage = coverageData.find(item => item.file === file.filename);
+
+      // so, we need to send the whole file to the ai for the context, it's hard to write tests without the full context AI!
       
       // Extract uncovered lines from coverage data
       let uncoveredLines = [];
