@@ -91,10 +91,12 @@ async function run() {
     }
 
     // so what we also now need to do before we actually analyze any of the files is as follows:
-    // 1. generate a "repo map" with all the files in the repo
-    // 2. Ask the AI which files are the most likely to contain tests for which files (so basically map every module to its probable test module if it exists, and if it doesn't then nothing)
-    // 3. Parse that info and have it as a map
-    // AI!
+    // Generate a repository map and find test files for source files
+    const repoMap = await generateRepoMap(octokit, owner, repo);
+    const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
+    
+    console.log("Source to test file mapping:");
+    console.log(sourceToTestMap);
 
     // Process each file in the PR
     for (const file of files) {
@@ -354,6 +356,170 @@ function getLastLineNumber(patch) {
   }
 
   return Math.max(currentLine, 1);
+}
+
+/**
+ * Generate a map of all files in the repository
+ */
+async function generateRepoMap(octokit, owner, repo) {
+  console.log("Generating repository file map...");
+  
+  try {
+    // For local development, we can use the filesystem
+    if (process.env.NODE_ENV === 'development') {
+      const files = [];
+      const rootDir = path.resolve(process.cwd(), '..');
+      
+      // Simple recursive function to get all files
+      const getFilesRecursively = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          const relativePath = path.relative(rootDir, fullPath);
+          
+          // Skip hidden directories and node_modules
+          if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '_build' || entry.name === 'deps') {
+            continue;
+          }
+          
+          if (entry.isDirectory()) {
+            getFilesRecursively(fullPath);
+          } else if (entry.isFile()) {
+            files.push(relativePath);
+          }
+        }
+      };
+      
+      getFilesRecursively(rootDir);
+      console.log(`Found ${files.length} files in the repository`);
+      return files;
+    }
+    
+    // For GitHub Actions, use the GitHub API
+    const { data: repoContent } = await octokit.rest.git.getTree({
+      owner,
+      repo,
+      tree_sha: 'HEAD',
+      recursive: '1'
+    });
+    
+    const files = repoContent.tree
+      .filter(item => item.type === 'blob')
+      .map(item => item.path);
+    
+    console.log(`Found ${files.length} files in the repository`);
+    return files;
+  } catch (error) {
+    console.error(`Error generating repo map: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Map source files to their corresponding test files using AI
+ */
+async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
+  console.log("Mapping source files to test files...");
+  
+  // Filter to only include Elixir files
+  const elixirFiles = repoFiles.filter(file => 
+    file.endsWith('.ex') || file.endsWith('.exs')
+  );
+  
+  // Separate test files from source files
+  const testFiles = elixirFiles.filter(file => 
+    file.includes('_test.exs') || file.includes('/test/') || file.startsWith('test/')
+  );
+  const sourceFiles = elixirFiles.filter(file => 
+    !file.includes('_test.exs') && !file.includes('/test/') && !file.startsWith('test/')
+  );
+  
+  console.log(`Found ${sourceFiles.length} source files and ${testFiles.length} test files`);
+  
+  // If there are too many files, we might need to process them in batches
+  if (sourceFiles.length > 50) {
+    console.log("Too many source files to process at once, using heuristic matching instead");
+    return createHeuristicSourceToTestMap(sourceFiles, testFiles);
+  }
+  
+  // Create a prompt for Claude to map source files to test files
+  const prompt = `
+You are a code organization expert. I need you to map source files to their corresponding test files in an Elixir project.
+
+# Source files:
+${sourceFiles.join('\n')}
+
+# Test files:
+${testFiles.join('\n')}
+
+For each source file, identify the most likely test file that would contain tests for it.
+Follow these Elixir conventions:
+1. A file at "lib/app/module.ex" is often tested in "test/app/module_test.exs"
+2. A file at "lib/app_web/controllers/user_controller.ex" might be tested in "test/app_web/controllers/user_controller_test.exs"
+3. Some modules might not have corresponding test files
+
+Return your answer as a JSON object where:
+- Keys are source file paths
+- Values are either the corresponding test file path or null if no test file exists
+
+Example:
+{
+  "lib/app/accounts.ex": "test/app/accounts_test.exs",
+  "lib/app/accounts/user.ex": "test/app/accounts/user_test.exs",
+  "lib/app_web/views/layout_view.ex": null
+}
+`;
+
+  try {
+    // Call Claude API
+    const message = await anthropic.messages.create({
+      model: "claude-3-7-sonnet-latest",
+      max_tokens: 4000,
+      system: "You are a code organization assistant that maps source files to test files.",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    // Parse the response
+    const responseText = message.content[0].text;
+    const jsonMatch =
+      responseText.match(/```json\n([\s\S]*?)\n```/) ||
+      responseText.match(/```\n([\s\S]*?)\n```/) ||
+      responseText.match(/{[\s\S]*}/);
+
+    const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
+    const sourceToTestMap = JSON.parse(jsonText);
+
+    return sourceToTestMap;
+  } catch (error) {
+    console.error(`Error mapping source files to test files: ${error.message}`);
+    // Fall back to heuristic matching
+    return createHeuristicSourceToTestMap(sourceFiles, testFiles);
+  }
+}
+
+/**
+ * Create a mapping from source files to test files using heuristics
+ */
+function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
+  const sourceToTestMap = {};
+  
+  for (const sourceFile of sourceFiles) {
+    // Convert lib/app/module.ex to test/app/module_test.exs
+    let expectedTestFile = sourceFile
+      .replace(/^lib\//, 'test/')
+      .replace(/\.ex$/, '_test.exs');
+    
+    // Check if the expected test file exists
+    if (testFiles.includes(expectedTestFile)) {
+      sourceToTestMap[sourceFile] = expectedTestFile;
+    } else {
+      // Try other heuristics or set to null if no match
+      sourceToTestMap[sourceFile] = null;
+    }
+  }
+  
+  return sourceToTestMap;
 }
 
 run();
