@@ -247,7 +247,6 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
-  // also add the file path of the test file so that AI can write where to add the test AI!
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -288,7 +287,7 @@ Analyze the code and suggest tests that would improve coverage. Pay special atte
 Format your response as JSON:
 {
   "create_new_file": ${!testFileExists},
-  "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : ""}",
+  "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, '').replace(/\.ex$/, '_test.exs')}`}",
   "suggestions": [
     {
       "target": "name of function or code block to test",
