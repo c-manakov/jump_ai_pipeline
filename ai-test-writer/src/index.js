@@ -241,6 +241,7 @@ async function analyzeCodeForTests(
   }
 
   // Create the prompt for Claude
+  // if no coverage data is available we don't need to send the request at all AI!
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
 
@@ -270,20 +271,6 @@ ${testFileContent}
 \`\`\`
 ${code}
 \`\`\`
-
-${
-  coverageData
-    ? `
-# Current coverage data:
-\`\`\`json
-${JSON.stringify(coverageData, null, 2)}
-\`\`\`
-
-# Uncovered lines:
-${uncoveredLines.length > 0 ? uncoveredLines.join(", ") : "None detected"}
-`
-    : "# No coverage data available for this file."
-}
 
 Analyze the code and suggest tests that would improve coverage. Pay special attention to lines marked with "# UNCOVERED" as these need test coverage. For each suggestion:
 1. Identify the specific function or code block that needs testing
