@@ -21,6 +21,8 @@ defmodule JumpAiPipeline.CoverageSummary do
     # Get all modules
     all_modules = :cover.modules()
 
+    IO.inspect(all_modules)
+
     # Print header
     IO.puts("\nCoverage Summary:")
     IO.puts("----------------")
@@ -36,6 +38,8 @@ defmodule JumpAiPipeline.CoverageSummary do
             {:ok, {_, {c, t}}} -> {c, t}
             _ -> {0, 0}
           end
+
+        dbg()
 
         total_covered = total_covered + covered
         total_total = total_total + total
