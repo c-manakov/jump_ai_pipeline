@@ -170,6 +170,8 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
+  // let's change the approach with line numbers, instead of asking the ai to provide specific lines let's ask it to provide the full code that is problematic and the suggestion that should be in place, and then let's find the line numbers specific code chunk ourselves, without the AI AI!
+
   // Create the prompt for Claude
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
