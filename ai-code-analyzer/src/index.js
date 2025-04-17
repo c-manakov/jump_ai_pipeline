@@ -246,9 +246,12 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
   for (const issue of analysis.issues) {
-    // Find the line in the file
-    const lineNumber = findLineNumber(file.patch, issue.line);
-    if (!lineNumber) continue;
+    // Find the start and end line numbers in the file
+    const { startLine, endLine } = findLineNumbers(file.patch, issue.startLine, issue.endLine);
+    if (!startLine || !endLine) {
+      console.log(`Could not find line numbers for issue in ${file.filename}`);
+      continue;
+    }
 
     const body = `## AI Code Review: ${issue.rule_id}
 
@@ -262,7 +265,7 @@ ${issue.suggestion}
 [View rule](${issue.rule_id}.md)`;
 
     console.log(
-      `Posting comment on ${file.filename}:${lineNumber} with commit ID ${latestCommitId}`,
+      `Posting comment on ${file.filename}:${startLine}-${endLine} with commit ID ${latestCommitId}`,
     );
 
     try {
@@ -274,11 +277,11 @@ ${issue.suggestion}
         body,
         commit_id: latestCommitId,
         path: file.filename,
-        start_line: lineNumber,
-        line: endLineNumber
+        start_line: startLine,
+        line: endLine
       });
 
-      console.log(`Posted comment on ${file.filename}:${lineNumber}`);
+      console.log(`Posted comment on ${file.filename}:${startLine}-${endLine}`);
     } catch (error) {
       console.error(`Error posting comment: ${error.message}`);
       console.error(error);
@@ -286,12 +289,13 @@ ${issue.suggestion}
   }
 }
 
-// modify this function so that it returns both start line and finish line AI!
-function findLineNumber(patch, codeLine) {
-  if (!patch) return null;
+function findLineNumbers(patch, startCodeLine, endCodeLine) {
+  if (!patch) return { startLine: null, endLine: null };
 
   const lines = patch.split("\n");
   let currentLine = 0;
+  let startLine = null;
+  let endLine = null;
 
   for (const line of lines) {
     if (line.startsWith("@@")) {
@@ -304,10 +308,23 @@ function findLineNumber(patch, codeLine) {
     }
 
     if (line.startsWith("+") && !line.startsWith("+++")) {
-      // Check if this added line matches our code line
-      if (line.substring(1).trim() === codeLine.trim()) {
-        return currentLine;
+      // Check if this added line matches our code lines
+      const trimmedLine = line.substring(1).trim();
+      
+      if (trimmedLine === startCodeLine.trim() && startLine === null) {
+        startLine = currentLine;
       }
+      
+      if (trimmedLine === endCodeLine.trim()) {
+        endLine = currentLine;
+      }
+      
+      // If we're looking for a single line (start and end are the same)
+      if (startCodeLine.trim() === endCodeLine.trim() && trimmedLine === startCodeLine.trim()) {
+        startLine = currentLine;
+        endLine = currentLine;
+      }
+      
       currentLine++;
     } else if (!line.startsWith("-") && !line.startsWith("---")) {
       // Context lines and other non-removed lines increment the line counter
@@ -315,7 +332,14 @@ function findLineNumber(patch, codeLine) {
     }
   }
 
-  return null;
+  // If we only found one line, use it for both start and end
+  if (startLine !== null && endLine === null) {
+    endLine = startLine;
+  } else if (startLine === null && endLine !== null) {
+    startLine = endLine;
+  }
+
+  return { startLine, endLine };
 }
 
 run();
