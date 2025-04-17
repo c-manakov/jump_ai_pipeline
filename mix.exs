@@ -10,7 +10,7 @@ defmodule JumpAiPipeline.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      test_coverage: [tool: ExCoveralls],
+      test_coverage: [tool: ExCoveralls, export: "cov"],
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.detail": :test,
@@ -82,7 +82,7 @@ defmodule JumpAiPipeline.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls"],
+      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "coveralls.json"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind jump_ai_pipeline", "esbuild jump_ai_pipeline"],
       "assets.deploy": [
