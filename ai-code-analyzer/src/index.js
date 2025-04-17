@@ -187,7 +187,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 2. Explain why it violates the rule
 3. Suggest a specific code change to fix the issue, but only do that if the suggestion is meaningful and changes the code. It's completely okay to not provide a suggestion if it's unclear or the code is the same.
 4. Include the starting line number and the ending line number for where the violation occurs and the possible suggestion should be applied. If the code snippet is one line then they can be the same.
-5. The suggestion should be actual code, while the explanation should go into explanation
+5. The suggestion should be actual code, while the explanation should go into explanation. Make sure that if the suggestion is applied, no lines are duplicated. If the suggestion is supposed to replace multiple lines of code then include all of these lines
 6. Try to keep the formatting correct
 
 Format your response as JSON:
