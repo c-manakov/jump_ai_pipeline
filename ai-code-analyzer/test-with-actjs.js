@@ -38,10 +38,12 @@ async function main() {
     fs.writeFileSync(eventFile, JSON.stringify(eventData, null, 2));
     console.log("Created test PR event file");
 
-    console.log(__dirname);
+    const projectRoot = path.resolve(__dirname);
+    console.log("Project root:", projectRoot);
+    
     // Initialize act-js
     const act = new Act({
-      cwd: path.resolve(__dirname, ".."), // Run from the root of the project
+      cwd: projectRoot, // Run from the current directory
       workflowPath: ".github/workflows", // Path to workflow files
     });
 
