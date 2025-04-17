@@ -78,7 +78,11 @@ defmodule JumpAiPipeline.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "test.coverage": ["ecto.create --quiet", "ecto.migrate --quiet", "test --cover --export-coverage default"],
+      "test.coverage": [
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "test --cover --export-coverage default"
+      ],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind jump_ai_pipeline", "esbuild jump_ai_pipeline"],
       "assets.deploy": [
