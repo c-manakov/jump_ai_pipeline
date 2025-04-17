@@ -92,8 +92,24 @@ async function run() {
 
       // Find coverage data for this file
       const fileCoverage = coverageData.find(item => item.file === file.filename);
-
-      // so, we need to send the whole file to the ai for the context, it's hard to write tests without the full context AI!
+      
+      // Get the full file content for better context
+      let fileContent = "";
+      try {
+        const { data: fileData } = await octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: file.filename,
+          ref: context.payload.pull_request.head.ref
+        });
+        
+        if (fileData.type === "file") {
+          fileContent = Buffer.from(fileData.content, 'base64').toString();
+          console.log(`Retrieved full content for ${file.filename} (${fileContent.length} chars)`);
+        }
+      } catch (error) {
+        console.log(`Could not retrieve full content for ${file.filename}: ${error.message}`);
+      }
       
       // Extract uncovered lines from coverage data
       let uncoveredLines = [];
@@ -110,7 +126,8 @@ async function run() {
         anthropic,
         addedLines.join("\n"),
         fileCoverage,
-        uncoveredLines
+        uncoveredLines,
+        fileContent
       );
 
       // Post comments if test suggestions found
@@ -143,12 +160,19 @@ function extractAddedLines(patch) {
   return addedLines;
 }
 
-async function analyzeCodeForTests(anthropic, code, coverageData, uncoveredLines = []) {
+async function analyzeCodeForTests(anthropic, code, coverageData, uncoveredLines = [], fullFileContent = "") {
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
 
-# Code to analyze:
+${fullFileContent ? `
+# Full file content for context:
+\`\`\`
+${fullFileContent}
+\`\`\`
+` : ''}
+
+# Code changes to analyze:
 \`\`\`
 ${code}
 \`\`\`
