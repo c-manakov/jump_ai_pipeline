@@ -91,6 +91,7 @@ async function run() {
       console.error(`Error loading coverage data: ${error.message}`);
     }
 
+    // filter out files that are not elixir (don't end in .ex) AI!
     // Process each file in the PR
     for (const file of files) {
       if (file.status === "removed") continue;
