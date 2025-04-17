@@ -23,6 +23,8 @@ defmodule JumpAiPipeline.CoverageSummary do
     # Get all modules
     all_modules = :cover.imported_modules()
 
+# now what I want to be able to get is data on the coverage line-by-line and export it as json AI!
+
     # Print header
     IO.puts("\nCoverage Summary:")
     IO.puts("----------------")
