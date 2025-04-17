@@ -18,11 +18,10 @@ async function run() {
     //   core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
     // const coveragePath = core.getInput("coverage-path") || "cover/coverage.json";
 
-
     // For local development:
     const githubToken = process.env.GITHUB_TOKEN;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const coveragePath = '../cover/coverage.json';
+    const coveragePath = "../cover/coverage.json";
 
     if (!githubToken) {
       throw new Error(
@@ -52,7 +51,7 @@ async function run() {
     // console.log(context.payload.pull_request);
 
     // For local development:
-    const { Octokit } = require('@octokit/rest');
+    const { Octokit } = require("@octokit/rest");
     const octokit = new Octokit({ auth: githubToken });
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;
@@ -81,7 +80,7 @@ async function run() {
     let coverageData = [];
     try {
       if (fs.existsSync(coveragePath)) {
-        const coverageContent = fs.readFileSync(coveragePath, 'utf8');
+        const coverageContent = fs.readFileSync(coveragePath, "utf8");
         coverageData = JSON.parse(coverageContent);
         console.log(`Loaded coverage data from ${coveragePath}`);
       } else {
@@ -91,18 +90,25 @@ async function run() {
       console.error(`Error loading coverage data: ${error.message}`);
     }
 
+    // so what we also now need to do before we actually analyze any of the files is as follows:
+    // 1. generate a "repo map" with all the files in the repo
+    // 2. Ask the AI which files are the most likely to contain tests for which files (so basically map every module to its probable test module if it exists, and if it doesn't then nothing)
+    // 3. Parse that info and have it as a map
+    // AI!
+
     // Process each file in the PR
     for (const file of files) {
       if (file.status === "removed") continue;
-      
+
       // Only process Elixir files
-      if (!file.filename.endsWith('.ex') && !file.filename.endsWith('.exs')) {
+      if (!file.filename.endsWith(".ex") && !file.filename.endsWith(".exs")) {
         console.log(`Skipping non-Elixir file: ${file.filename}`);
         continue;
       }
 
       // Extract added lines
       const addedLines = extractAddedLines(file.patch);
+      console.log(addedLines)
       if (addedLines.length === 0) continue;
 
       console.log(
@@ -110,41 +116,56 @@ async function run() {
       );
 
       // Find coverage data for this file
-      const fileCoverage = coverageData.find(item => item.file === file.filename);
-      
+      const fileCoverage = coverageData.find(
+        (item) => item.file === file.filename,
+      );
+
       // Get the full file content for better context
       let fileContent = "";
       try {
         // Read file content from filesystem
-        const resolvedPath = path.resolve(process.cwd(), file.filename);
-        fileContent = fs.readFileSync(resolvedPath, 'utf8');
-        console.log(`Read full content for ${file.filename} (${fileContent.length} chars)`);
+        const resolvedPath = path.resolve(process.cwd(), "..", file.filename);
+        fileContent = fs.readFileSync(resolvedPath, "utf8");
+        console.log(
+          `Read full content for ${file.filename} (${fileContent.length} chars)`,
+        );
       } catch (error) {
-        console.log(`Could not retrieve full content for ${file.filename}: ${error.message}`);
+        console.log(
+          `Could not retrieve full content for ${file.filename}: ${error.message}`,
+        );
       }
-      
+
       // Extract uncovered lines from coverage data
       let uncoveredLines = [];
       if (fileCoverage && fileCoverage.lines) {
         uncoveredLines = fileCoverage.lines
-          .filter(line => line[1] === false)  // Get only uncovered lines
-          .map(line => line[0]);              // Extract line numbers
-        
-        console.log(`Found ${uncoveredLines.length} uncovered lines in ${file.filename}`);
+          .filter((line) => line[1] === false) // Get only uncovered lines
+          .map((line) => line[0]); // Extract line numbers
+
+        console.log(
+          `Found ${uncoveredLines.length} uncovered lines in ${file.filename}`,
+        );
       }
-      
+
       // Analyze code with Claude and suggest tests
       const analysis = await analyzeCodeForTests(
         anthropic,
         addedLines.join("\n"),
         fileCoverage,
         uncoveredLines,
-        fileContent
+        fileContent,
       );
 
       // Post comments if test suggestions found
       if (analysis.suggestions.length > 0) {
-        await postTestSuggestions(octokit, owner, repo, pullNumber, file, analysis);
+        await postTestSuggestions(
+          octokit,
+          owner,
+          repo,
+          pullNumber,
+          file,
+          analysis,
+        );
       }
     }
 
@@ -162,42 +183,58 @@ function extractAddedLines(patch) {
   const lines = patch.split("\n");
   const addedLines = [];
 
+  console.log(lines)
   for (const line of lines) {
     if (line.startsWith("+") && !line.startsWith("+++")) {
       // Remove the leading '+' and add to our collection
       addedLines.push(line.substring(1));
     }
   }
+  console.log(addedLines)
 
   return addedLines;
 }
 
-async function analyzeCodeForTests(anthropic, code, coverageData, uncoveredLines = [], fullFileContent = "") {
+async function analyzeCodeForTests(
+  anthropic,
+  code,
+  coverageData,
+  uncoveredLines = [],
+  fullFileContent = "",
+) {
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
 
-${fullFileContent ? `
+${
+  fullFileContent
+    ? `
 # Full file content for context:
 \`\`\`
 ${fullFileContent}
 \`\`\`
-` : ''}
+`
+    : ""
+}
 
 # Code changes to analyze:
 \`\`\`
 ${code}
 \`\`\`
 
-${coverageData ? `
+${
+  coverageData
+    ? `
 # Current coverage data:
 \`\`\`json
 ${JSON.stringify(coverageData, null, 2)}
 \`\`\`
 
 # Uncovered lines:
-${uncoveredLines.length > 0 ? uncoveredLines.join(', ') : 'None detected'}
-` : '# No coverage data available for this file.'}
+${uncoveredLines.length > 0 ? uncoveredLines.join(", ") : "None detected"}
+`
+    : "# No coverage data available for this file."
+}
 
 Analyze the code and suggest tests that would improve coverage. For each suggestion:
 1. Identify the specific function or code block that needs testing
@@ -247,7 +284,14 @@ If no test suggestions are needed, return {"suggestions": []}.
   }
 }
 
-async function postTestSuggestions(octokit, owner, repo, pullNumber, file, analysis) {
+async function postTestSuggestions(
+  octokit,
+  owner,
+  repo,
+  pullNumber,
+  file,
+  analysis,
+) {
   // Get the latest commit ID from the PR
   const { data: pullRequest } = await octokit.rest.pulls.get({
     owner,
@@ -278,10 +322,12 @@ ${suggestion.test_code}
         body,
         commit_id: latestCommitId,
         path: file.filename,
-        line: getLastLineNumber(file.patch)
+        line: getLastLineNumber(file.patch),
       });
 
-      console.log(`Posted test suggestion for ${suggestion.target} in ${file.filename}`);
+      console.log(
+        `Posted test suggestion for ${suggestion.target} in ${file.filename}`,
+      );
     } catch (error) {
       console.error(`Error posting test suggestion: ${error.message}`);
       console.error(error);
