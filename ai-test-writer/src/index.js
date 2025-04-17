@@ -94,6 +94,7 @@ async function run() {
     // Generate a repository map and find test files for source files
     const repoMap = await generateRepoMap(octokit, owner, repo);
     const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
+    console.log(sourceToTestMap)
     
     console.log("Source to test file mapping:");
     console.log(sourceToTestMap);
@@ -204,6 +205,7 @@ async function analyzeCodeForTests(
   uncoveredLines = [],
   fullFileContent = "",
 ) {
+  // now since we have our sourceToTestMap let's also provide the existing test file (if it exists) to the AI so that it can use  it as context and suggest updates to the existing file. If the file doesn't exist we need to ask the AI to instruct the user to create the file AI!
   // Create the prompt for Claude
   const prompt = `
 You are a test writing assistant that helps developers improve their test coverage.
@@ -438,7 +440,7 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log(`Found ${sourceFiles.length} source files and ${testFiles.length} test files`);
   
   // If there are too many files, we might need to process them in batches
-  if (sourceFiles.length > 50) {
+  if (sourceFiles.length > 150) {
     console.log("Too many source files to process at once, using heuristic matching instead");
     return createHeuristicSourceToTestMap(sourceFiles, testFiles);
   }
