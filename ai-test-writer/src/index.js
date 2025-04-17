@@ -45,7 +45,12 @@ async function run() {
     const pullNumber = context.payload.pull_request?.number;
     console.log(context.payload.pull_request);
 
-    // add the local development initialization here same as in the code analyzer AI!
+    // For local development:
+    // const { Octokit } = require('@octokit/rest');
+    // const octokit = new Octokit({ auth: githubToken });
+    // const owner = process.env.GITHUB_OWNER;
+    // const repo = process.env.GITHUB_REPO;
+    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
