@@ -1,0 +1,19 @@
+name: 'AI Code Analyzer'
+description: 'Analyzes code changes in PRs against custom AI rules'
+author: 'Your Name'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude access'
+    required: true
+  rules-path:
+    description: 'Path to the rules directory'
+    default: '.ai-code-rules'
+    required: false
+
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
