@@ -11,15 +11,19 @@ async function run() {
     console.log("=== AI Code Analyzer starting ===");
     console.log("Node version:", process.version);
     console.log("Current directory:", process.cwd());
-    // Get inputs
-    const githubToken = core.getInput('github-token', { required: true });
-    const anthropicApiKey = core.getInput('anthropic-api-key') || process.env.ANTHROPIC_API_KEY;
     
-    if (!anthropicApiKey) {
-      throw new Error('Anthropic API key is required. Please provide it as an input or environment variable.');
+    // DEVELOPMENT: Hardcoded values for testing
+    const githubToken = process.env.GITHUB_TOKEN;
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    const rulesPath = process.env.RULES_PATH || '.ai-code-rules';
+    
+    if (!githubToken) {
+      throw new Error('GitHub token is required. Please set GITHUB_TOKEN environment variable.');
     }
     
-    const rulesPath = core.getInput('rules-path') || '.ai-code-rules';
+    if (!anthropicApiKey) {
+      throw new Error('Anthropic API key is required. Please set ANTHROPIC_API_KEY environment variable.');
+    }
     
     console.log("Inputs received:");
     console.log("- github-token:", githubToken ? "✓ (set)" : "✗ (not set)");
@@ -27,20 +31,19 @@ async function run() {
     console.log("- rules-path:", rulesPath);
     
     // Initialize clients
-    const octokit = github.getOctokit(githubToken);
+    const { Octokit } = require('@octokit/rest');
+    const octokit = new Octokit({ auth: githubToken });
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
     });
     
-    // Get PR details
-    const context = github.context;
-    console.log("GitHub context:", JSON.stringify(context, null, 2));
+    // DEVELOPMENT: Hardcoded PR details for testing
+    const owner = process.env.GITHUB_OWNER;
+    const repo = process.env.GITHUB_REPO;
+    const pullNumber = parseInt(process.env.PR_NUMBER, 10);
     
-    const { owner, repo } = context.repo;
-    const pullNumber = context.payload.pull_request?.number;
-    
-    if (!pullNumber) {
-      throw new Error("No pull request number found in the context. Make sure this action is triggered by a pull request event.");
+    if (!owner || !repo || isNaN(pullNumber)) {
+      throw new Error("Missing required environment variables: GITHUB_OWNER, GITHUB_REPO, or PR_NUMBER");
     }
     
     console.log(`Processing PR #${pullNumber} in ${owner}/${repo}`);
