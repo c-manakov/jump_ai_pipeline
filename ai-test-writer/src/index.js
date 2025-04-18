@@ -16,7 +16,8 @@ async function run() {
       process.env.GITHUB_TOKEN;
     const anthropicApiKey =
       core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
-    const coveragePath = core.getInput("coverage-path") || "cover/coverage.json";
+    const coveragePath =
+      core.getInput("coverage-path") || "cover/coverage.json";
 
     const octokit = github.getOctokit(githubToken);
     const context = github.context;
@@ -54,7 +55,6 @@ async function run() {
       anthropicApiKey ? "✓ (set)" : "✗ (not set)",
     );
     console.log("- coverage-path:", coveragePath);
-
 
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
@@ -127,7 +127,7 @@ async function run() {
         console.log(`Parent directory contents (${parentDir}):`);
         const dirContents = fs.readdirSync(parentDir);
         console.log(dirContents);
-        
+
         const resolvedPath = path.resolve(process.cwd(), file.filename);
         fileContent = fs.readFileSync(resolvedPath, "utf8");
         console.log(
@@ -216,10 +216,7 @@ async function analyzeCodeForTests(
     const testFilePath = sourceToTestMap[file.filename];
     if (testFilePath) {
       try {
-        const resolvedTestPath = path.resolve(
-          process.cwd(),
-          testFilePath,
-        );
+        const resolvedTestPath = path.resolve(process.cwd(), testFilePath);
         testFileContent = fs.readFileSync(resolvedTestPath, "utf8");
         testFileExists = true;
         console.log(`Found and loaded test file: ${testFilePath}`);
@@ -375,10 +372,13 @@ async function postTestSuggestions(
   for (const suggestion of analysis.suggestions) {
     // Determine action based on confidence level
     const confidenceLevel = suggestion.confidence || 0;
-    const actionType = confidenceLevel >= 4 ? "Automatic Implementation" : 
-                      confidenceLevel === 3 ? "Suggested Implementation" : 
-                      "Manual Implementation Required";
-    
+    const actionType =
+      confidenceLevel >= 4
+        ? "Automatic Implementation"
+        : confidenceLevel === 3
+          ? "Suggested Implementation"
+          : "Manual Implementation Required";
+
     const body = `## AI Test Suggestion for: ${suggestion.target}
 
 ${suggestion.explanation}
@@ -387,9 +387,12 @@ ${suggestion.explanation}
 ${actionType}
 
 ### Suggested Test:
-${suggestion.search_replace_block || `\`\`\`elixir
+${
+  suggestion.search_replace_block ||
+  `\`\`\`elixir
 ${suggestion.test_code}
-\`\`\``}
+\`\`\``
+}
 
 ${
   analysis.create_new_file
@@ -416,11 +419,13 @@ ${
       console.log(
         `Posted test suggestion for ${suggestion.target} in ${file.filename} (confidence: ${confidenceLevel}/5)`,
       );
-      
+
       // If confidence is high (4-5), we could automatically implement the test
       // This would be implemented in a separate function
       if (confidenceLevel >= 4) {
-        console.log(`High confidence test for ${suggestion.target} - eligible for automatic implementation`);
+        console.log(
+          `High confidence test for ${suggestion.target} - eligible for automatic implementation`,
+        );
         // Future implementation: await implementTest(suggestion, analysis.test_file_path);
       }
     } catch (error) {
@@ -521,7 +526,9 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log("Mapping source files to test files...");
 
   // Filter to only include Elixir files
-  const elixirFiles = repoFiles.filter((file) => file.endsWith(".ex"));
+  const elixirFiles = repoFiles.filter(
+    (file) => file.endsWith(".ex") || file.endsWith(".exs"),
+  );
 
   // Separate test files from source files
   const testFiles = elixirFiles.filter(
@@ -534,8 +541,30 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
     (file) =>
       !file.includes("_test.exs") &&
       !file.includes("/test/") &&
-      !file.startsWith("test/"),
+      !file.startsWith("test/") &&
+      file.endsWith(".ex"),
   );
+
+  // {
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline/application.ex': null,
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline/coverage_summary.ex': 'jump_ai_pipeline/test/jump_ai_pipeline/coverage_summary_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline/mailer.ex': null,
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline/repo.ex': null,
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline/uncovered_module.ex': 'jump_ai_pipeline/test/jump_ai_pipeline/uncovered_module_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/components/core_components.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/components/core_components_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/components/layouts.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/components/layouts_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/error_html.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/error_html_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/error_json.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/error_json_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/page_controller.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/page_controller_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/page_html.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/page_html_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/endpoint.ex': null,
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/gettext.ex': null,
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/router.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/router_test.exs',
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/telemetry.ex': null,
+  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web_test.exs'
+  // }
+  // the map gets generated like this, we don't really need the first part of the path, so after we find all elixir files, we need to map them to not include that AI!
 
   console.log(
     `Found ${sourceFiles.length} source files and ${testFiles.length} test files`,
@@ -599,7 +628,7 @@ Example:
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const sourceToTestMap = JSON.parse(jsonText);
 
-    console.log(sourceToTestMap)
+    console.log(sourceToTestMap);
 
     return sourceToTestMap;
   } catch (error) {
