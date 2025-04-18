@@ -148,4 +148,175 @@ describe("formatSuggestionIndentation", () => {
   });
 });
 
-// perfect, thank you. Now let's test postComments. We'll need some mocks for that. AI!
+describe("postComments", () => {
+  beforeEach(() => {
+    // Mock octokit
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("should post comments for issues with valid line numbers", async () => {
+    // Mock dependencies
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          get: jest.fn().mockResolvedValue({
+            data: { head: { sha: "test-commit-sha" } }
+          }),
+          createReviewComment: jest.fn().mockResolvedValue({})
+        }
+      }
+    };
+
+    const mockFile = {
+      filename: "test.js",
+      patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;\n const d = 4;"
+    };
+
+    const mockAnalysis = {
+      issues: [
+        {
+          rule_id: "test-rule",
+          code: "const b = 2;",
+          explanation: "Test explanation",
+          suggestion: "const b = 2; // Fixed"
+        }
+      ]
+    };
+
+    // Create a spy on findCodeInPatch
+    const findCodeInPatchSpy = jest.spyOn(global, 'findCodeInPatch')
+      .mockReturnValue({ startLine: 2, endLine: 2, originalIndentation: null });
+
+    // Create a spy on formatSuggestionIndentation
+    const formatSuggestionIndentationSpy = jest.spyOn(global, 'formatSuggestionIndentation')
+      .mockReturnValue("const b = 2; // Fixed");
+
+    // Call the function
+    await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
+
+    // Verify the function was called with the right arguments
+    expect(mockOctokit.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 123
+    });
+
+    expect(findCodeInPatchSpy).toHaveBeenCalledWith(mockFile.patch, "const b = 2;");
+    expect(formatSuggestionIndentationSpy).toHaveBeenCalledWith("const b = 2; // Fixed", null);
+
+    expect(mockOctokit.rest.pulls.createReviewComment).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 123,
+      body: expect.stringContaining("AI Code Review: test-rule"),
+      commit_id: "test-commit-sha",
+      path: "test.js",
+      line: 2
+    });
+  });
+
+  test("should skip issues with invalid line numbers", async () => {
+    // Mock dependencies
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          get: jest.fn().mockResolvedValue({
+            data: { head: { sha: "test-commit-sha" } }
+          }),
+          createReviewComment: jest.fn().mockResolvedValue({})
+        }
+      }
+    };
+
+    const mockFile = {
+      filename: "test.js",
+      patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;\n const d = 4;"
+    };
+
+    const mockAnalysis = {
+      issues: [
+        {
+          rule_id: "test-rule",
+          code: "non-existent code",
+          explanation: "Test explanation",
+          suggestion: "const b = 2; // Fixed"
+        }
+      ]
+    };
+
+    // Create a spy on findCodeInPatch
+    const findCodeInPatchSpy = jest.spyOn(global, 'findCodeInPatch')
+      .mockReturnValue({ startLine: null, endLine: null, originalIndentation: null });
+
+    // Call the function
+    await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
+
+    // Verify the function was called with the right arguments
+    expect(mockOctokit.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 123
+    });
+
+    expect(findCodeInPatchSpy).toHaveBeenCalledWith(mockFile.patch, "non-existent code");
+    expect(mockOctokit.rest.pulls.createReviewComment).not.toHaveBeenCalled();
+  });
+
+  test("should handle multi-line comments", async () => {
+    // Mock dependencies
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          get: jest.fn().mockResolvedValue({
+            data: { head: { sha: "test-commit-sha" } }
+          }),
+          createReviewComment: jest.fn().mockResolvedValue({})
+        }
+      }
+    };
+
+    const mockFile = {
+      filename: "test.js",
+      patch: "@@ -1,3 +1,5 @@\n const a = 1;\n+const b = 2;\n+const e = 5;\n const c = 3;\n const d = 4;"
+    };
+
+    const mockAnalysis = {
+      issues: [
+        {
+          rule_id: "test-rule",
+          code: "const b = 2;\nconst e = 5;",
+          explanation: "Test explanation",
+          suggestion: "const b = 2;\nconst e = 5; // Fixed"
+        }
+      ]
+    };
+
+    // Create a spy on findCodeInPatch
+    const findCodeInPatchSpy = jest.spyOn(global, 'findCodeInPatch')
+      .mockReturnValue({ startLine: 2, endLine: 3, originalIndentation: null });
+
+    // Create a spy on formatSuggestionIndentation
+    const formatSuggestionIndentationSpy = jest.spyOn(global, 'formatSuggestionIndentation')
+      .mockReturnValue("const b = 2;\nconst e = 5; // Fixed");
+
+    // Call the function
+    await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
+
+    // Verify the function was called with the right arguments
+    expect(mockOctokit.rest.pulls.createReviewComment).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 123,
+      body: expect.stringContaining("AI Code Review: test-rule"),
+      commit_id: "test-commit-sha",
+      path: "test.js",
+      start_line: 2,
+      line: 3
+    });
+  });
+});
