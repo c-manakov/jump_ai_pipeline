@@ -251,6 +251,8 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
+  // first of all let's scrap the search/replace block and just ask to provide the full resulting file with the new tests  AI!
+  // second let's try to lower the average confidence score by encouraging AI to be a bit more reserved with it confidence  AI!
   // Create the prompt for Claude
   const prompt = `
 You are an expert automated QA engineer that helps developers improve their test coverage.
@@ -311,7 +313,7 @@ Format your response as JSON:
       "target": "name of function or code block to test",
       "explanation": "why this needs testing",
       "test_code": "suggested test implementation",
-      "confidence": 4,
+      "confidence": 2,
       "search_replace_block": "test_file_path\\n\`\`\`elixir\\n<<<<<<< SEARCH\\nexisting code if any\\n=======\\nnew or modified code\\n>>>>>>> REPLACE\\n\`\`\`"
     }
   ]
