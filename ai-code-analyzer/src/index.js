@@ -290,7 +290,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
         .map((line, index) => {
           // Don't add indentation to empty lines
           if (line.trim() === '') return '';
-          // First line might already have correct indentation from the AI
+          // First line might already have correct indentation
           return index === 0 ? line : originalIndentation + line;
         })
         .join('\n');
@@ -305,8 +305,7 @@ ${issue.explanation}
 ${formattedSuggestion || ''}
 \`\`\`
 
-[View rule](${issue.rule_id}.md)`;
-    // the link above needs to be fixes to have a url to the specific file with the rule on this specific commit AI!
+[View rule](https://github.com/${owner}/${repo}/blob/${latestCommitId}/.ai-code-rules/${issue.rule_id}.md)`;
 
     console.log(
       `Posting comment on ${file.filename}:${startLine}-${endLine} with commit ID ${latestCommitId}`,
