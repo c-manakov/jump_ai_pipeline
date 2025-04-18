@@ -1,7 +1,19 @@
 const path = require("path");
 const fs = require("fs");
 
-const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns, formatSuggestionIndentation, postComments } = require("../src/index");
+// Import the module - we'll mock specific functions in the tests
+const indexModule = require("../src/index");
+const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns, formatSuggestionIndentation, postComments } = indexModule;
+
+// Mock the entire module for the postComments tests
+jest.mock("../src/index", () => {
+  const originalModule = jest.requireActual("../src/index");
+  return {
+    ...originalModule,
+    findCodeInPatch: jest.fn(),
+    formatSuggestionIndentation: jest.fn()
+  };
+});
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
