@@ -89,6 +89,7 @@ jobs:
           path: cover/
           retention-days: 14
 
+        # we should move these build steps into the action itself   AI!
       - name: Install dependencies
         run: cd ai-test-writer && npm install
         
