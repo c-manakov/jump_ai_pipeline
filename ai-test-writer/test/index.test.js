@@ -59,7 +59,7 @@ describe("generateRepoMap", () => {
         isFile: () => name.endsWith(".ex")
       }));
       
-      // Mock a simplified project structure
+      // let's just have one folder and one file inside AI!
       if (dir.includes("test")) {
         return createEntries(["app", "test_helper.exs"]);
       } else if (dir.includes("test/app")) {
