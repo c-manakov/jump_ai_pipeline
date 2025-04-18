@@ -59,26 +59,17 @@ describe("generateRepoMap", () => {
         isFile: () => name.endsWith(".ex")
       }));
       
-      // make it much smaller, we don't need that much AI!
-      // Mock a realistic project structure
-      if (dir.includes("test/app")) {
-        return createEntries(["accounts_test.exs", "users_test.exs"]);
-      } else if (dir.includes("test/app_web")) {
-        return createEntries(["controllers", "views"]);
-      } else if (dir.includes("test")) {
-        return createEntries(["app", "app_web", "support", "test_helper.exs"]);
-      } else if (dir.includes("lib/app/accounts")) {
-        return createEntries(["user.ex", "account.ex"]);
-      } else if (dir.includes("lib/app")) {
-        return createEntries(["accounts.ex", "accounts"]);
-      } else if (dir.includes("lib/app_web/controllers")) {
-        return createEntries(["user_controller.ex", "page_controller.ex"]);
-      } else if (dir.includes("lib/app_web")) {
-        return createEntries(["controllers", "views", "router.ex"]);
+      // Mock a simplified project structure
+      if (dir.includes("test")) {
+        return createEntries(["app", "test_helper.exs"]);
+      } else if (dir.includes("test/app")) {
+        return createEntries(["accounts_test.exs"]);
       } else if (dir.includes("lib")) {
-        return createEntries(["app", "app_web"]);
+        return createEntries(["app"]);
+      } else if (dir.includes("lib/app")) {
+        return createEntries(["accounts.ex"]);
       } else if (dir === path.resolve(process.cwd(), "..") || dir === "") {
-        return createEntries(["lib", "test", "config", "mix.exs", "node_modules", ".git"]);
+        return createEntries(["lib", "test", "mix.exs"]);
       } else {
         return [];
       }
