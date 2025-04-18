@@ -217,6 +217,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
 4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before. If the suggestion is to remove the code, provide none.
+5. IMPORTANT: When providing suggestions, preserve the exact indentation style of the original code. If the original code uses 2 spaces for indentation, use 2 spaces. If it uses 4 spaces, use 4 spaces. If it uses tabs, use tabs.
 
 Format your response as JSON:
 {
@@ -285,13 +286,27 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
     // Apply the original indentation to the suggestion
     let formattedSuggestion = issue.suggestion;
     if (originalIndentation && issue.suggestion) {
-      formattedSuggestion = issue.suggestion
-        .split('\n')
+      // Preserve the original indentation pattern for each line
+      const lines = issue.suggestion.split('\n');
+      
+      // Check if the first line already has indentation
+      const firstLineIndent = lines[0].match(/^(\s+)/);
+      const baseIndent = firstLineIndent ? firstLineIndent[1] : '';
+      
+      formattedSuggestion = lines
         .map((line, index) => {
           // Don't add indentation to empty lines
           if (line.trim() === '') return '';
-          // First line might already have correct indentation
-          return index === 0 ? line : originalIndentation + line;
+          
+          // For first line, keep as is
+          if (index === 0) return line;
+          
+          // For subsequent lines, replace their existing indentation with the original
+          // First remove any existing indentation
+          const trimmedLine = line.replace(/^\s+/, '');
+          
+          // Then add the original indentation
+          return originalIndentation + trimmedLine;
         })
         .join('\n');
     }
@@ -504,10 +519,15 @@ function findCodeInPatch(patch, codeSnippet) {
   // Extract indentation from the original code snippet
   let originalIndentation = null;
   if (startLine !== null && originalLines.length > 0) {
-    const firstLine = originalLines[0];
-    const match = firstLine.match(/^(\s+)/);
-    if (match) {
-      originalIndentation = match[1];
+    // Get indentation from the first non-empty line
+    for (const line of originalLines) {
+      if (line.trim() !== '') {
+        const match = line.match(/^(\s+)/);
+        if (match) {
+          originalIndentation = match[1];
+          break;
+        }
+      }
     }
   }
 
