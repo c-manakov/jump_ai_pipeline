@@ -252,7 +252,6 @@ async function analyzeCodeForTests(
   }
 
   // Create the prompt for Claude
-  // instead of separate suggestions we need to work in context of files and the confidence score should be generated for the lowest confidence score of all the tests. Ask the AI to rate the score of each test but generate the full file with all of them. Our code than needs to find the lowest one and decide if we can proceed with automatic implementation AI!
   const prompt = `
 You are an expert automated QA engineer that helps developers improve their test coverage.
 
@@ -288,32 +287,35 @@ ${sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, "").
 
 Analyze the code and suggest tests that would improve coverage. Focus ONLY on uncovered lines that were added in the current commit (these are the lines in the "Code changes to analyze" section that are also marked with "# UNCOVERED" in the full file content).
 
-Do NOT create tests for uncovered lines that aren't in the code changes provided above. For each suggestion:
+Do NOT create tests for uncovered lines that aren't in the code changes provided above.
+
+For the test file:
+1. Provide the COMPLETE test file content as it should appear after your changes
+2. If creating a new file, provide the entire file content
+3. If modifying an existing file, provide the entire file with your additions integrated properly
+
+For each test you add:
 1. Identify the specific function or code block that needs testing
-2. Provide a specific test case implementation that would test this code
-3. Make sure the test follows best practices and is well-structured
-4. Rate your confidence from 1-5 that this test will work without modifications
+2. Explain why testing this is important
+3. Rate your confidence from 1-5 that this test will work without modifications
    - Be conservative in your confidence ratings
    - Consider 3 as the default for most tests
    - Only use 4-5 for extremely simple and straightforward cases
    - Use 1-2 for complex cases involving external dependencies, concurrency, randomness or mocking
 
-Provide the COMPLETE test file content as it should appear after your changes.
-If creating a new file, provide the entire file content.
-If modifying an existing file, provide the entire file with your additions integrated properly.
-
 Format your response as JSON:
 {
   "create_new_file": ${!testFileExists},
   "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, "").replace(/\.ex$/, "_test.exs")}`}",
-  "suggestions": [
+  "complete_test_file": "entire test file content with new tests integrated",
+  "tests": [
     {
       "target": "name of function or code block to test",
       "explanation": "why this needs testing",
-      "confidence": 2,
-      "complete_test_file": "entire test file content with new tests integrated"
+      "confidence": 2
     }
-  ]
+  ],
+  "lowest_confidence": 2
 }
 
 If no test suggestions are needed, return {"suggestions": []}.
@@ -341,6 +343,28 @@ ${!testFileExists ? "If a new test file needs to be created, include complete fi
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const analysis = JSON.parse(jsonText);
+    
+    // If the response uses the new format with a complete_test_file at the top level,
+    // convert it to the old format for backward compatibility
+    if (analysis.complete_test_file && analysis.tests) {
+      // Find the lowest confidence score among all tests
+      const lowestConfidence = analysis.lowest_confidence || 
+        Math.min(...analysis.tests.map(test => test.confidence || 0));
+      
+      // Convert to the old format
+      return {
+        create_new_file: analysis.create_new_file,
+        test_file_path: analysis.test_file_path,
+        suggestions: [
+          {
+            target: "Multiple functions",
+            explanation: "Combined test file for multiple functions",
+            confidence: lowestConfidence,
+            complete_test_file: analysis.complete_test_file
+          }
+        ]
+      };
+    }
 
     return analysis;
   } catch (error) {
@@ -378,7 +402,7 @@ async function postTestSuggestions(
           ? "Suggested Implementation"
           : "Manual Implementation Required";
 
-    const body = `## AI Test Suggestion for: ${suggestion.target}
+    const body = `## AI Test Suggestion${suggestion.target !== "Multiple functions" ? ` for: ${suggestion.target}` : ""}
 
 ${suggestion.explanation}
 
