@@ -6,18 +6,6 @@ const path = require("path");
 const glob = require("glob");
 const { marked } = require("marked");
 
-// Export functions for testing and reuse
-module.exports = {
-  run,
-  loadRules,
-  extractAddedLines,
-  analyzeCode,
-  postComments,
-  loadIgnorePatterns,
-  shouldIgnoreFile,
-  findCodeInPatch
-};
-
 async function run() {
   try {
     console.log("=== AI Code Analyzer starting ===");
@@ -560,18 +548,29 @@ function findCodeInPatch(patch, codeSnippet) {
 }
 
 // Export internal functions for testing
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === "test") {
   module.exports = {
     __test: {
       findCodeInPatch,
       extractAddedLines,
       shouldIgnoreFile,
-      loadIgnorePatterns
-    }
+      loadIgnorePatterns,
+    },
   };
 }
 
 // Only run the action if not in test environment
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== "test") {
   run();
 }
+
+module.exports = {
+  run,
+  loadRules,
+  extractAddedLines,
+  analyzeCode,
+  postComments,
+  loadIgnorePatterns,
+  shouldIgnoreFile,
+  findCodeInPatch,
+};
