@@ -1,25 +1,15 @@
 const path = require("path");
 const fs = require("fs");
+const rewire = require("rewire");
 
-// Import the module - we'll mock specific functions in the tests
+// Import the module for normal tests
 const indexModule = require("../src/index");
 const {
   findCodeInPatch,
   shouldIgnoreFile,
   loadIgnorePatterns,
   formatSuggestionIndentation,
-  postComments,
 } = indexModule;
-
-// Mock the entire module for the postComments tests
-jest.mock("../src/index", () => {
-  const originalModule = jest.requireActual("../src/index");
-  return {
-    ...originalModule,
-    findCodeInPatch: jest.fn(),
-    formatSuggestionIndentation: jest.fn(),
-  };
-});
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
@@ -171,27 +161,29 @@ describe("formatSuggestionIndentation", () => {
 });
 
 describe("postComments", () => {
+  // Use rewire to access and modify private functions
+  let rewiredModule;
+  let mockFindCodeInPatch;
+  let mockFormatSuggestionIndentation;
+  
   beforeEach(() => {
+    // Create a new rewired instance for each test
+    rewiredModule = rewire("../src/index");
+    
     // Mock console.error but allow console.log for debugging
     jest.spyOn(console, "error").mockImplementation(() => {});
-
-    // Reset the mocks before each test
-    jest.spyOn(indexModule, "findCodeInPatch").mockImplementation(() => ({
-      startLine: 2,
-      endLine: 2,
-      originalIndentation: null,
-    }));
-
-    jest
-      .spyOn(indexModule, "formatSuggestionIndentation")
-      .mockImplementation(() => "const b = 2; // Fixed");
-    // indexModule.findCodeInPatch = jest.fn();
+    
+    // Create mock functions
+    mockFindCodeInPatch = jest.fn();
+    mockFormatSuggestionIndentation = jest.fn();
+    
+    // Replace the internal functions with our mocks
+    rewiredModule.__set__("findCodeInPatch", mockFindCodeInPatch);
+    rewiredModule.__set__("formatSuggestionIndentation", mockFormatSuggestionIndentation);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
-    jest.resetAllMocks();
-    jest.clearAllMocks();
   });
 
   test("should post comments for issues with valid line numbers", async () => {
@@ -225,16 +217,25 @@ describe("postComments", () => {
     };
 
     // Setup mock return values
-    indexModule.findCodeInPatch.mockReturnValue({
+    mockFindCodeInPatch.mockReturnValue({
       startLine: 2,
       endLine: 2,
       originalIndentation: null,
     });
 
-    indexModule.formatSuggestionIndentation.mockReturnValue(
+    mockFormatSuggestionIndentation.mockReturnValue(
       "const b = 2; // Fixed",
     );
 
+    // Get the postComments function from the rewired module
+    const postComments = rewiredModule.__get__("postComments");
+    
+    // Get the postComments function from the rewired module
+    const postComments = rewiredModule.__get__("postComments");
+    
+    // Get the postComments function from the rewired module
+    const postComments = rewiredModule.__get__("postComments");
+    
     // Call the function
     await postComments(
       mockOctokit,
@@ -252,11 +253,11 @@ describe("postComments", () => {
       pull_number: 123,
     });
 
-    expect(indexModule.findCodeInPatch).toHaveBeenCalledWith(
+    expect(mockFindCodeInPatch).toHaveBeenCalledWith(
       mockFile.patch,
       "const b = 2;",
     );
-    expect(indexModule.formatSuggestionIndentation).toHaveBeenCalledWith(
+    expect(mockFormatSuggestionIndentation).toHaveBeenCalledWith(
       "const b = 2; // Fixed",
       null,
     );
@@ -303,7 +304,7 @@ describe("postComments", () => {
     };
 
     // Setup mock return values
-    indexModule.findCodeInPatch.mockReturnValue({
+    mockFindCodeInPatch.mockReturnValue({
       startLine: null,
       endLine: null,
       originalIndentation: null,
@@ -326,7 +327,7 @@ describe("postComments", () => {
       pull_number: 123,
     });
 
-    expect(indexModule.findCodeInPatch).toHaveBeenCalledWith(
+    expect(mockFindCodeInPatch).toHaveBeenCalledWith(
       mockFile.patch,
       "non-existent code",
     );
@@ -364,13 +365,13 @@ describe("postComments", () => {
     };
 
     // Setup mock return values
-    indexModule.findCodeInPatch.mockReturnValue({
+    mockFindCodeInPatch.mockReturnValue({
       startLine: 2,
       endLine: 3,
       originalIndentation: null,
     });
 
-    indexModule.formatSuggestionIndentation.mockReturnValue(
+    mockFormatSuggestionIndentation.mockReturnValue(
       "const b = 2;\nconst e = 5; // Fixed",
     );
 
