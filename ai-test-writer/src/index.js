@@ -532,7 +532,15 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
     (file) => file.endsWith(".ex") || file.endsWith(".exs"),
   );
 
-  // so we need to move the mappping here to not duplicate it and without any conditions just remove the first part of the path, simple as that AI!
+  // Clean up paths to remove project prefix if present
+  const cleanElixirFiles = elixirFiles.map(file => {
+    const parts = file.split('/');
+    // If path starts with a project name folder, remove it
+    if (parts.length > 1 && parts[0].includes('_')) {
+      return parts.slice(1).join('/');
+    }
+    return file;
+  });
 
   // Separate test files from source files
   const testFiles = elixirFiles.filter(
@@ -549,8 +557,8 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
       file.endsWith(".ex"),
   );
 
-  // Clean up paths to remove project prefix if present
-  const cleanSourceFiles = sourceFiles.map(file => {
+  // Use the cleaned paths for test and source files
+  const cleanTestFiles = testFiles.map(file => {
     const parts = file.split('/');
     // If path starts with a project name folder, remove it
     if (parts.length > 1 && parts[0].includes('_')) {
@@ -559,7 +567,7 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
     return file;
   });
 
-  const cleanTestFiles = testFiles.map(file => {
+  const cleanSourceFiles = sourceFiles.map(file => {
     const parts = file.split('/');
     // If path starts with a project name folder, remove it
     if (parts.length > 1 && parts[0].includes('_')) {
