@@ -11,17 +11,29 @@ async function run() {
     console.log("Current directory:", process.cwd());
 
     // For GitHub Actions:
-    // const githubToken =
-    //   core.getInput("github-token", { required: true }) ||
-    //   process.env.GITHUB_TOKEN;
-    // const anthropicApiKey =
-    //   core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
-    // const coveragePath = core.getInput("coverage-path") || "cover/coverage.json";
+    const githubToken =
+      core.getInput("github-token", { required: true }) ||
+      process.env.GITHUB_TOKEN;
+    const anthropicApiKey =
+      core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
+    const coveragePath = core.getInput("coverage-path") || "cover/coverage.json";
+
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+    const { owner, repo } = context.repo;
+    const pullNumber = context.payload.pull_request?.number;
+    console.log(context.payload.pull_request);
 
     // For local development:
-    const githubToken = process.env.GITHUB_TOKEN;
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const coveragePath = "../cover/coverage.json";
+    // const { Octokit } = require("@octokit/rest");
+    // const octokit = new Octokit({ auth: githubToken });
+    // const owner = process.env.GITHUB_OWNER;
+    // const repo = process.env.GITHUB_REPO;
+    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
+    //
+    // const githubToken = process.env.GITHUB_TOKEN;
+    // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    // const coveragePath = "../cover/coverage.json";
 
     if (!githubToken) {
       throw new Error(
@@ -43,19 +55,6 @@ async function run() {
     );
     console.log("- coverage-path:", coveragePath);
 
-    // For GitHub Actions:
-    // const octokit = github.getOctokit(githubToken);
-    // const context = github.context;
-    // const { owner, repo } = context.repo;
-    // const pullNumber = context.payload.pull_request?.number;
-    // console.log(context.payload.pull_request);
-
-    // For local development:
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({ auth: githubToken });
-    const owner = process.env.GITHUB_OWNER;
-    const repo = process.env.GITHUB_REPO;
-    const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
@@ -102,8 +101,8 @@ async function run() {
       if (file.status === "removed") continue;
 
       // Only process Elixir files
-      if (!file.filename.endsWith(".ex") && !file.filename.endsWith(".exs")) {
-        console.log(`Skipping non-Elixir file: ${file.filename}`);
+      if (!file.filename.endsWith(".ex")) {
+        console.log(`Skipping non-ex file: ${file.filename}`);
         continue;
       }
 
