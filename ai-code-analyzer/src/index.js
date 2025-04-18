@@ -277,21 +277,33 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
   for (const issue of analysis.issues) {
     // Find the line numbers for the problematic code
-    const { startLine, endLine } = findCodeInPatch(file.patch, issue.code);
+    const { startLine, endLine, originalIndentation } = findCodeInPatch(file.patch, issue.code);
     if (!startLine || !endLine) {
       console.log(`Could not find line numbers for issue in ${file.filename}`);
       continue;
     }
 
-    // when posting the suggestion let's make sure that the suggestion has the same indentation as the code. When we're finding the code in patch let's also get a snippet that's not normalized, get the amount of whitespaces from the first line of it and then add the same amount of whitespaces to all lines of the suggestion AI!
+    // Apply the original indentation to the suggestion
+    let formattedSuggestion = issue.suggestion;
+    if (originalIndentation) {
+      formattedSuggestion = issue.suggestion
+        .split('\n')
+        .map((line, index) => {
+          // Don't add indentation to empty lines
+          if (line.trim() === '') return '';
+          // First line might already have correct indentation from the AI
+          return index === 0 ? line : originalIndentation + line;
+        })
+        .join('\n');
+    }
+
     const body = `## AI Code Review: ${issue.rule_id}
-  
 
 ${issue.explanation}
 
 ### Suggestion:
 \`\`\`suggestion
-${issue.suggestion}
+${formattedSuggestion}
 \`\`\`
 
 [View rule](${issue.rule_id}.md)`;
@@ -396,15 +408,18 @@ function shouldIgnoreFile(filename, patterns) {
 }
 
 function findCodeInPatch(patch, codeSnippet) {
-  if (!patch || !codeSnippet) return { startLine: null, endLine: null };
+  if (!patch || !codeSnippet) return { startLine: null, endLine: null, originalIndentation: null };
 
+  // Store the original code snippet for indentation analysis
+  const originalLines = codeSnippet.split("\n");
+  
   // Normalize the code snippet by trimming each line
   const normalizedSnippet = codeSnippet
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  if (normalizedSnippet.length === 0) return { startLine: null, endLine: null };
+  if (normalizedSnippet.length === 0) return { startLine: null, endLine: null, originalIndentation: null };
 
   const lines = patch.split("\n");
   let currentLine = 0;
@@ -487,7 +502,17 @@ function findCodeInPatch(patch, codeSnippet) {
     }
   }
 
-  return { startLine, endLine };
+  // Extract indentation from the original code snippet
+  let originalIndentation = null;
+  if (startLine !== null && originalLines.length > 0) {
+    const firstLine = originalLines[0];
+    const match = firstLine.match(/^(\s+)/);
+    if (match) {
+      originalIndentation = match[1];
+    }
+  }
+
+  return { startLine, endLine, originalIndentation };
 }
 
 run();
