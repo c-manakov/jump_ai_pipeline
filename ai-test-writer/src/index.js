@@ -295,7 +295,7 @@ Do NOT create tests for uncovered lines that aren't in the code changes provided
    - Be conservative in your confidence ratings
    - Consider 3 as the default for most tests
    - Only use 4-5 for extremely simple and straightforward cases
-   - Use 1-2 for complex cases involving external dependencies, concurrency, or randomness
+   - Use 1-2 for complex cases involving external dependencies, concurrency, randomness or mocking
 
 Instead of providing search/replace blocks, provide the COMPLETE test file content as it should appear after your changes.
 If creating a new file, provide the entire file content.
