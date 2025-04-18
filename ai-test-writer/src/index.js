@@ -614,28 +614,7 @@ Example:
       responseText.match(/{[\s\S]*}/);
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
-    const rawSourceToTestMap = JSON.parse(jsonText);
-
-    // we don't need to convert anything back, the cleaning has already happened, bring the code that was here before we cleaned up the paths AI!
-    const sourceToTestMap = {};
-    sourceFiles.forEach((originalSourcePath) => {
-      const cleanedPath = originalSourcePath.split("/").slice(1).join("/");
-      if (rawSourceToTestMap[cleanedPath]) {
-        // If there's a test file, convert its path back to the original format
-        const cleanTestPath = rawSourceToTestMap[cleanedPath];
-        if (cleanTestPath) {
-          const originalTestPath = testFiles.find((path) =>
-            path.endsWith(cleanTestPath),
-          );
-          sourceToTestMap[originalSourcePath] =
-            originalTestPath || cleanTestPath;
-        } else {
-          sourceToTestMap[originalSourcePath] = null;
-        }
-      } else {
-        sourceToTestMap[originalSourcePath] = null;
-      }
-    });
+    const sourceToTestMap = JSON.parse(jsonText);
 
     console.log(sourceToTestMap);
 
