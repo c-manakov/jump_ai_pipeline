@@ -300,9 +300,9 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
           // Don't add indentation to empty lines
           if (line.trim() === "") return "";
 
-          // actually we need to apply indentation for first line too AI!
-          // For first line, keep as is
-          if (index === 0) return line;
+          // For all lines including the first one, apply proper indentation
+          const trimmedLine = line.replace(/^\s+/, "");
+          return originalIndentation + trimmedLine;
 
           // For subsequent lines, replace their existing indentation with the original
           // First remove any existing indentation
