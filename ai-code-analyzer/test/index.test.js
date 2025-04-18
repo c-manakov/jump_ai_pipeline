@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const glob = require("glob");
 const rewire = require("rewire");
 
 // Import the module for normal tests
@@ -10,6 +11,9 @@ const {
   loadIgnorePatterns,
   formatSuggestionIndentation,
 } = indexModule;
+
+// Mock glob module
+jest.mock("glob");
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
@@ -560,4 +564,91 @@ describe("analyzeCode", () => {
   });
 });
 
-// that works perfectly, thank you. Now let's test loadRules AI!
+describe("loadRules", () => {
+  beforeEach(() => {
+    // Mock fs and glob functions
+    jest.spyOn(fs, "readFileSync").mockImplementation(() => "# Rule Title\n\nRule content goes here");
+    jest.spyOn(fs, "existsSync").mockImplementation(() => true);
+    jest.spyOn(glob, "sync").mockImplementation(() => [
+      ".ai-code-rules/rule1.md",
+      ".ai-code-rules/rule2.md"
+    ]);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("should load rules from markdown files", async () => {
+    // Get the loadRules function from the module
+    const loadRules = rewiredModule.__get__("loadRules");
+    
+    // Call the function
+    const rules = await loadRules(".ai-code-rules");
+    
+    // Verify the result
+    expect(rules).toHaveLength(2);
+    expect(rules[0]).toEqual(expect.objectContaining({
+      id: "rule1",
+      title: "Rule Title",
+      content: "# Rule Title\n\nRule content goes here",
+      path: expect.stringContaining("rule1.md")
+    }));
+    expect(rules[1]).toEqual(expect.objectContaining({
+      id: "rule2",
+      title: "Rule Title",
+      content: "# Rule Title\n\nRule content goes here",
+      path: expect.stringContaining("rule2.md")
+    }));
+  });
+
+  test("should handle rules without proper title", async () => {
+    // Mock readFileSync to return content without a title
+    fs.readFileSync.mockImplementation(() => "Rule content without title");
+    
+    // Get the loadRules function from the module
+    const loadRules = rewiredModule.__get__("loadRules");
+    
+    // Call the function
+    const rules = await loadRules(".ai-code-rules");
+    
+    // Verify the result
+    expect(rules).toHaveLength(2);
+    expect(rules[0].title).toBe("rule1");
+    expect(rules[1].title).toBe("rule2");
+  });
+
+  test("should return empty array when no rules found", async () => {
+    // Mock glob to return empty array
+    glob.sync.mockImplementation(() => []);
+    
+    // Get the loadRules function from the module
+    const loadRules = rewiredModule.__get__("loadRules");
+    
+    // Call the function
+    const rules = await loadRules(".ai-code-rules");
+    
+    // Verify the result
+    expect(rules).toEqual([]);
+  });
+
+  test("should handle errors when reading rule files", async () => {
+    // Mock readFileSync to throw an error for the first file
+    fs.readFileSync
+      .mockImplementationOnce(() => { throw new Error("File not found"); })
+      .mockImplementationOnce(() => "# Rule 2\n\nContent for rule 2");
+    
+    // Mock console.error to prevent test output pollution
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    // Get the loadRules function from the module
+    const loadRules = rewiredModule.__get__("loadRules");
+    
+    // Call the function
+    const rules = await loadRules(".ai-code-rules");
+    
+    // Verify the result - should still return the second rule
+    expect(rules).toHaveLength(1);
+    expect(rules[0].id).toBe("rule2");
+  });
+});

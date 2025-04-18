@@ -139,25 +139,33 @@ async function run() {
 async function loadRules(rulesPath) {
   const rules = [];
 
-  // Find all markdown files in the rules directory
-  const files = glob.sync(`${rulesPath}/**/*.md`);
+  try {
+    // Find all markdown files in the rules directory
+    const files = glob.sync(`${rulesPath}/**/*.md`);
 
-  for (const file of files) {
-    const content = fs.readFileSync(file, "utf8");
-    const relativePath = path.relative(process.cwd(), file);
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(file, "utf8");
+        const relativePath = path.relative(process.cwd(), file);
 
-    // Parse markdown to get title and description
-    const tokens = marked.lexer(content);
-    const title =
-      tokens.find((t) => t.type === "heading" && t.depth === 1)?.text ||
-      path.basename(file, ".md");
+        // Parse markdown to get title and description
+        const tokens = marked.lexer(content);
+        const title =
+          tokens.find((t) => t.type === "heading" && t.depth === 1)?.text ||
+          path.basename(file, ".md");
 
-    rules.push({
-      id: path.basename(file, ".md"),
-      title,
-      content,
-      path: relativePath,
-    });
+        rules.push({
+          id: path.basename(file, ".md"),
+          title,
+          content,
+          path: relativePath,
+        });
+      } catch (error) {
+        console.error(`Error loading rule from ${file}: ${error.message}`);
+      }
+    }
+  } catch (error) {
+    console.error(`Error finding rule files: ${error.message}`);
   }
 
   return rules;
