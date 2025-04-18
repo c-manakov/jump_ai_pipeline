@@ -51,7 +51,9 @@ describe("createHeuristicSourceToTestMap", () => {
 describe("generateRepoMap", () => {
   beforeEach(() => {
     jest.spyOn(fs, "readdirSync").mockImplementation((dir) => {
-      if (dir.endsWith("..")) {
+      console.log(dir)
+      // entries need to be objects that hane a `name` AI!
+      if (dir != "") {
         return ["lib", "test", "node_modules", ".git"];
       } else if (dir.includes("lib")) {
         return ["app", "app_web"];
@@ -75,7 +77,7 @@ describe("generateRepoMap", () => {
   });
   
   test("should recursively collect files from the repository", async () => {
-    const result = await indexModule.generateRepoMap();
+    const result = indexModule.generateRepoMap();
     
     expect(result).toContain("lib/app/accounts.ex");
     expect(result).toContain("lib/app/users.ex");
@@ -90,7 +92,7 @@ describe("generateRepoMap", () => {
     
     jest.spyOn(console, "error").mockImplementation(() => {});
     
-    const result = await indexModule.generateRepoMap();
+    const result = indexModule.generateRepoMap();
     expect(result).toEqual([]);
   });
 });
