@@ -387,7 +387,7 @@ ${suggestion.explanation}
 ${actionType}
 
 ${
-  suggestion.search_replace_block 
+  suggestion.search_replace_block
     ? `### Implementation:
 ${suggestion.search_replace_block}`
     : `### Suggested Test:
@@ -528,19 +528,16 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log("Mapping source files to test files...");
 
   // Filter to only include Elixir files
-  const elixirFiles = repoFiles.filter(
-    (file) => file.endsWith(".ex") || file.endsWith(".exs"),
-  );
-
-  // Clean up paths to remove project prefix if present
-  const cleanElixirFiles = elixirFiles.map(file => {
-    const parts = file.split('/');
-    // If path starts with a project name folder, remove it
-    if (parts.length > 1 && parts[0].includes('_')) {
-      return parts.slice(1).join('/');
-    }
-    return file;
-  });
+  const elixirFiles = repoFiles
+    .filter((file) => file.endsWith(".ex") || file.endsWith(".exs"))
+    .map((file) => {
+      const parts = file.split("/");
+      // If path starts with a project name folder, remove it
+      if (parts.length > 1) {
+        return parts.slice(1).join("/");
+      }
+      return file;
+    });
 
   // Separate test files from source files
   const testFiles = elixirFiles.filter(
@@ -556,25 +553,6 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
       !file.startsWith("test/") &&
       file.endsWith(".ex"),
   );
-
-  // Use the cleaned paths for test and source files
-  const cleanTestFiles = testFiles.map(file => {
-    const parts = file.split('/');
-    // If path starts with a project name folder, remove it
-    if (parts.length > 1 && parts[0].includes('_')) {
-      return parts.slice(1).join('/');
-    }
-    return file;
-  });
-
-  const cleanSourceFiles = sourceFiles.map(file => {
-    const parts = file.split('/');
-    // If path starts with a project name folder, remove it
-    if (parts.length > 1 && parts[0].includes('_')) {
-      return parts.slice(1).join('/');
-    }
-    return file;
-  });
 
   console.log(
     `Found ${sourceFiles.length} source files and ${testFiles.length} test files`,
@@ -595,10 +573,10 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
 You are a code organization expert. I need you to map source files to their corresponding test files in an Elixir project.
 
 # Source files:
-${cleanSourceFiles.join("\n")}
+${sourceFiles.join("\n")}
 
 # Test files:
-${cleanTestFiles.join("\n")}
+${testFiles.join("\n")}
 
 For each source file, identify the most likely test file that would contain tests for it.
 Follow these Elixir conventions:
@@ -637,17 +615,20 @@ Example:
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const rawSourceToTestMap = JSON.parse(jsonText);
-    
+
     // Convert the cleaned paths back to original paths for the final map
     const sourceToTestMap = {};
-    sourceFiles.forEach(originalSourcePath => {
-      const cleanedPath = originalSourcePath.split('/').slice(1).join('/');
+    sourceFiles.forEach((originalSourcePath) => {
+      const cleanedPath = originalSourcePath.split("/").slice(1).join("/");
       if (rawSourceToTestMap[cleanedPath]) {
         // If there's a test file, convert its path back to the original format
         const cleanTestPath = rawSourceToTestMap[cleanedPath];
         if (cleanTestPath) {
-          const originalTestPath = testFiles.find(path => path.endsWith(cleanTestPath));
-          sourceToTestMap[originalSourcePath] = originalTestPath || cleanTestPath;
+          const originalTestPath = testFiles.find((path) =>
+            path.endsWith(cleanTestPath),
+          );
+          sourceToTestMap[originalSourcePath] =
+            originalTestPath || cleanTestPath;
         } else {
           sourceToTestMap[originalSourcePath] = null;
         }
@@ -674,15 +655,16 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
 
   for (const sourceFile of sourceFiles) {
     // Handle paths with or without project prefix
-    const parts = sourceFile.split('/');
-    const projectPrefix = parts.length > 1 && parts[0].includes('_') ? parts[0] + '/' : '';
-    const relativePath = projectPrefix ? parts.slice(1).join('/') : sourceFile;
-    
+    const parts = sourceFile.split("/");
+    const projectPrefix =
+      parts.length > 1 && parts[0].includes("_") ? parts[0] + "/" : "";
+    const relativePath = projectPrefix ? parts.slice(1).join("/") : sourceFile;
+
     // Convert lib/app/module.ex to test/app/module_test.exs
     let expectedTestFile = relativePath
       .replace(/^lib\//, "test/")
       .replace(/\.ex$/, "_test.exs");
-    
+
     // Add project prefix back if it existed
     if (projectPrefix) {
       expectedTestFile = projectPrefix + expectedTestFile;
