@@ -19,11 +19,21 @@ async function run() {
     const anthropicApiKey =
       core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
     const rulesPath = core.getInput("rules-path") || ".ai-code-rules";
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+    const { owner, repo } = context.repo;
+    const pullNumber = context.payload.pull_request?.number;
 
     // For local development:
     // const githubToken = process.env.GITHUB_TOKEN;
     // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
     // const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
+    // const { Octokit } = require("@octokit/rest");
+    // const octokit = new Octokit({ auth: githubToken });
+    //
+    // const owner = process.env.GITHUB_OWNER;
+    // const repo = process.env.GITHUB_REPO;
+    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     if (!githubToken) {
       throw new Error(
@@ -45,23 +55,9 @@ async function run() {
     );
     console.log("- rules-path:", rulesPath);
 
-    // For GitHub Actions:
-    const octokit = github.getOctokit(githubToken);
-    const context = github.context;
-    const { owner, repo } = context.repo;
-    const pullNumber = context.payload.pull_request?.number;
-    //
-    // For local development:
-    // const { Octokit } = require("@octokit/rest");
-    // const octokit = new Octokit({ auth: githubToken });
-    //
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
     });
-
-    // const owner = process.env.GITHUB_OWNER;
-    // const repo = process.env.GITHUB_REPO;
-    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     if (!owner || !repo || isNaN(pullNumber)) {
       throw new Error(
@@ -528,17 +524,19 @@ function findCodeInPatch(patch, codeSnippet) {
         }
       }
     }
-    
+
     // Fallback: if we couldn't extract indentation from the snippet,
     // try to extract it from the patch at the matching position
     if (!originalIndentation) {
-      const patchLines = patch.split('\n');
+      const patchLines = patch.split("\n");
       for (const line of patchLines) {
-        if (line.startsWith('+') && line.includes(originalLines[0].trim())) {
+        if (line.startsWith("+") && line.includes(originalLines[0].trim())) {
           const match = line.substring(1).match(/^(\s+)/);
           if (match) {
             originalIndentation = match[1];
-            console.log(`Found indentation from patch: '${originalIndentation}'`);
+            console.log(
+              `Found indentation from patch: '${originalIndentation}'`,
+            );
             break;
           }
         }
