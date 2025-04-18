@@ -111,4 +111,39 @@ describe("loadIgnorePatterns", () => {
   });
 });
 
-// perfect, thank you, that works. Now let's test formatSuggestionIndentation AI!
+describe("formatSuggestionIndentation", () => {
+  test("should return original suggestion when no indentation is provided", () => {
+    const suggestion = "const x = 1;\nconst y = 2;";
+    const result = formatSuggestionIndentation(suggestion, null);
+    expect(result).toBe(suggestion);
+  });
+
+  test("should return original suggestion when suggestion is null or empty", () => {
+    expect(formatSuggestionIndentation(null, "  ")).toBeNull();
+    expect(formatSuggestionIndentation("", "  ")).toBe("");
+  });
+
+  test("should apply indentation to all non-empty lines", () => {
+    const suggestion = "if (condition) {\n  doSomething();\n}";
+    const indentation = "  ";
+    const expected = "  if (condition) {\n  doSomething();\n  }";
+    const result = formatSuggestionIndentation(suggestion, indentation);
+    expect(result).toBe(expected);
+  });
+
+  test("should preserve empty lines without indentation", () => {
+    const suggestion = "line1\n\nline2";
+    const indentation = "  ";
+    const expected = "  line1\n\n  line2";
+    const result = formatSuggestionIndentation(suggestion, indentation);
+    expect(result).toBe(expected);
+  });
+
+  test("should remove existing indentation before applying new indentation", () => {
+    const suggestion = "  line1\n    line2";
+    const indentation = "    ";
+    const expected = "    line1\n    line2";
+    const result = formatSuggestionIndentation(suggestion, indentation);
+    expect(result).toBe(expected);
+  });
+});
