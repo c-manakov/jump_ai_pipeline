@@ -3,7 +3,13 @@ const fs = require("fs");
 
 // Import the module - we'll mock specific functions in the tests
 const indexModule = require("../src/index");
-const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns, formatSuggestionIndentation, postComments } = indexModule;
+const {
+  findCodeInPatch,
+  shouldIgnoreFile,
+  loadIgnorePatterns,
+  formatSuggestionIndentation,
+  postComments,
+} = indexModule;
 
 // Mock the entire module for the postComments tests
 jest.mock("../src/index", () => {
@@ -11,7 +17,7 @@ jest.mock("../src/index", () => {
   return {
     ...originalModule,
     findCodeInPatch: jest.fn(),
-    formatSuggestionIndentation: jest.fn()
+    formatSuggestionIndentation: jest.fn(),
   };
 });
 
@@ -70,29 +76,31 @@ describe("shouldIgnoreFile", () => {
     const result = shouldIgnoreFile("file.js", []);
     expect(result).toBe(false);
   });
-  
+
   test("should return true when filename matches a pattern", () => {
     const patterns = ["*.js", "test/*"];
     expect(shouldIgnoreFile("file.js", patterns)).toBe(true);
     expect(shouldIgnoreFile("test/file.txt", patterns)).toBe(true);
   });
-  
+
   test("should return false when filename does not match any pattern", () => {
     const patterns = ["*.js", "test/*"];
     expect(shouldIgnoreFile("file.txt", patterns)).toBe(false);
     expect(shouldIgnoreFile("src/file.txt", patterns)).toBe(false);
   });
-  
+
   test("should match directories in path", () => {
     const patterns = ["node_modules/*"];
-    expect(shouldIgnoreFile("node_modules/package/index.js", patterns)).toBe(true);
+    expect(shouldIgnoreFile("node_modules/package/index.js", patterns)).toBe(
+      true,
+    );
   });
 });
 
 describe("loadIgnorePatterns", () => {
   beforeEach(() => {
-    jest.spyOn(fs, 'existsSync').mockImplementation(() => false);
-    jest.spyOn(fs, 'readFileSync').mockImplementation(() => '');
+    jest.spyOn(fs, "existsSync").mockImplementation(() => false);
+    jest.spyOn(fs, "readFileSync").mockImplementation(() => "");
   });
 
   afterEach(() => {
@@ -101,7 +109,7 @@ describe("loadIgnorePatterns", () => {
 
   test("should return empty array when ignore file does not exist", () => {
     fs.existsSync.mockReturnValue(false);
-    
+
     const result = loadIgnorePatterns();
     expect(result).toEqual([]);
   });
@@ -109,15 +117,17 @@ describe("loadIgnorePatterns", () => {
   test("should load patterns from ignore file", () => {
     fs.existsSync.mockReturnValue(true);
     fs.readFileSync.mockReturnValue("*.js\n# Comment\n\ntest/*");
-    
+
     const result = loadIgnorePatterns();
     expect(result).toEqual(["*.js", "test/*"]);
   });
 
   test("should handle empty lines and comments", () => {
     fs.existsSync.mockReturnValue(true);
-    fs.readFileSync.mockReturnValue("*.js\n# This is a comment\n\n  test/*  \n#Another comment");
-    
+    fs.readFileSync.mockReturnValue(
+      "*.js\n# This is a comment\n\n  test/*  \n#Another comment",
+    );
+
     const result = loadIgnorePatterns();
     expect(result).toEqual(["*.js", "test/*"]);
   });
@@ -163,11 +173,19 @@ describe("formatSuggestionIndentation", () => {
 describe("postComments", () => {
   beforeEach(() => {
     // Mock console.error but allow console.log for debugging
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    
+    jest.spyOn(console, "error").mockImplementation(() => {});
+
     // Reset the mocks before each test
-    indexModule.findCodeInPatch = jest.fn();
-    indexModule.formatSuggestionIndentation = jest.fn();
+    jest.spyOn(indexModule, "findCodeInPatch").mockImplementation(() => ({
+      startLine: 2,
+      endLine: 2,
+      originalIndentation: null,
+    }));
+
+    jest
+      .spyOn(indexModule, "formatSuggestionIndentation")
+      .mockImplementation(() => "const b = 2; // Fixed");
+    // indexModule.findCodeInPatch = jest.fn();
   });
 
   afterEach(() => {
@@ -182,16 +200,17 @@ describe("postComments", () => {
       rest: {
         pulls: {
           get: jest.fn().mockResolvedValue({
-            data: { head: { sha: "test-commit-sha" } }
+            data: { head: { sha: "test-commit-sha" } },
           }),
-          createReviewComment: jest.fn().mockResolvedValue({})
-        }
-      }
+          createReviewComment: jest.fn().mockResolvedValue({}),
+        },
+      },
     };
 
     const mockFile = {
       filename: "test.js",
-      patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;\n const d = 4;"
+      patch:
+        "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;\n const d = 4;",
     };
 
     const mockAnalysis = {
@@ -200,32 +219,47 @@ describe("postComments", () => {
           rule_id: "test-rule",
           code: "const b = 2;",
           explanation: "Test explanation",
-          suggestion: "const b = 2; // Fixed"
-        }
-      ]
+          suggestion: "const b = 2; // Fixed",
+        },
+      ],
     };
 
     // Setup mock return values
-    indexModule.findCodeInPatch.mockReturnValue({ 
-      startLine: 2, 
-      endLine: 2, 
-      originalIndentation: null 
+    indexModule.findCodeInPatch.mockReturnValue({
+      startLine: 2,
+      endLine: 2,
+      originalIndentation: null,
     });
-    
-    indexModule.formatSuggestionIndentation.mockReturnValue("const b = 2; // Fixed");
+
+    indexModule.formatSuggestionIndentation.mockReturnValue(
+      "const b = 2; // Fixed",
+    );
 
     // Call the function
-    await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
+    await postComments(
+      mockOctokit,
+      "owner",
+      "repo",
+      123,
+      mockFile,
+      mockAnalysis,
+    );
 
     // Verify the function was called with the right arguments
     expect(mockOctokit.rest.pulls.get).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
-      pull_number: 123
+      pull_number: 123,
     });
 
-    expect(indexModule.findCodeInPatch).toHaveBeenCalledWith(mockFile.patch, "const b = 2;");
-    expect(indexModule.formatSuggestionIndentation).toHaveBeenCalledWith("const b = 2; // Fixed", null);
+    expect(indexModule.findCodeInPatch).toHaveBeenCalledWith(
+      mockFile.patch,
+      "const b = 2;",
+    );
+    expect(indexModule.formatSuggestionIndentation).toHaveBeenCalledWith(
+      "const b = 2; // Fixed",
+      null,
+    );
 
     expect(mockOctokit.rest.pulls.createReviewComment).toHaveBeenCalledWith({
       owner: "owner",
@@ -234,7 +268,7 @@ describe("postComments", () => {
       body: expect.stringContaining("AI Code Review: test-rule"),
       commit_id: "test-commit-sha",
       path: "test.js",
-      line: 2
+      line: 2,
     });
   });
 
@@ -244,16 +278,17 @@ describe("postComments", () => {
       rest: {
         pulls: {
           get: jest.fn().mockResolvedValue({
-            data: { head: { sha: "test-commit-sha" } }
+            data: { head: { sha: "test-commit-sha" } },
           }),
-          createReviewComment: jest.fn().mockResolvedValue({})
-        }
-      }
+          createReviewComment: jest.fn().mockResolvedValue({}),
+        },
+      },
     };
 
     const mockFile = {
       filename: "test.js",
-      patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;\n const d = 4;"
+      patch:
+        "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;\n const d = 4;",
     };
 
     const mockAnalysis = {
@@ -262,29 +297,39 @@ describe("postComments", () => {
           rule_id: "test-rule",
           code: "non-existent code",
           explanation: "Test explanation",
-          suggestion: "const b = 2; // Fixed"
-        }
-      ]
+          suggestion: "const b = 2; // Fixed",
+        },
+      ],
     };
 
     // Setup mock return values
-    indexModule.findCodeInPatch.mockReturnValue({ 
-      startLine: null, 
-      endLine: null, 
-      originalIndentation: null 
+    indexModule.findCodeInPatch.mockReturnValue({
+      startLine: null,
+      endLine: null,
+      originalIndentation: null,
     });
 
     // Call the function
-    await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
+    await postComments(
+      mockOctokit,
+      "owner",
+      "repo",
+      123,
+      mockFile,
+      mockAnalysis,
+    );
 
     // Verify the function was called with the right arguments
     expect(mockOctokit.rest.pulls.get).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
-      pull_number: 123
+      pull_number: 123,
     });
 
-    expect(indexModule.findCodeInPatch).toHaveBeenCalledWith(mockFile.patch, "non-existent code");
+    expect(indexModule.findCodeInPatch).toHaveBeenCalledWith(
+      mockFile.patch,
+      "non-existent code",
+    );
     expect(mockOctokit.rest.pulls.createReviewComment).not.toHaveBeenCalled();
   });
 
@@ -294,16 +339,17 @@ describe("postComments", () => {
       rest: {
         pulls: {
           get: jest.fn().mockResolvedValue({
-            data: { head: { sha: "test-commit-sha" } }
+            data: { head: { sha: "test-commit-sha" } },
           }),
-          createReviewComment: jest.fn().mockResolvedValue({})
-        }
-      }
+          createReviewComment: jest.fn().mockResolvedValue({}),
+        },
+      },
     };
 
     const mockFile = {
       filename: "test.js",
-      patch: "@@ -1,3 +1,5 @@\n const a = 1;\n+const b = 2;\n+const e = 5;\n const c = 3;\n const d = 4;"
+      patch:
+        "@@ -1,3 +1,5 @@\n const a = 1;\n+const b = 2;\n+const e = 5;\n const c = 3;\n const d = 4;",
     };
 
     const mockAnalysis = {
@@ -312,22 +358,31 @@ describe("postComments", () => {
           rule_id: "test-rule",
           code: "const b = 2;\nconst e = 5;",
           explanation: "Test explanation",
-          suggestion: "const b = 2;\nconst e = 5; // Fixed"
-        }
-      ]
+          suggestion: "const b = 2;\nconst e = 5; // Fixed",
+        },
+      ],
     };
 
     // Setup mock return values
-    indexModule.findCodeInPatch.mockReturnValue({ 
-      startLine: 2, 
-      endLine: 3, 
-      originalIndentation: null 
+    indexModule.findCodeInPatch.mockReturnValue({
+      startLine: 2,
+      endLine: 3,
+      originalIndentation: null,
     });
-    
-    indexModule.formatSuggestionIndentation.mockReturnValue("const b = 2;\nconst e = 5; // Fixed");
+
+    indexModule.formatSuggestionIndentation.mockReturnValue(
+      "const b = 2;\nconst e = 5; // Fixed",
+    );
 
     // Call the function
-    await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
+    await postComments(
+      mockOctokit,
+      "owner",
+      "repo",
+      123,
+      mockFile,
+      mockAnalysis,
+    );
 
     // Verify the function was called with the right arguments
     expect(mockOctokit.rest.pulls.createReviewComment).toHaveBeenCalledWith({
@@ -338,7 +393,7 @@ describe("postComments", () => {
       commit_id: "test-commit-sha",
       path: "test.js",
       start_line: 2,
-      line: 3
+      line: 3,
     });
   });
 });
