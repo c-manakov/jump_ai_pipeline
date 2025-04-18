@@ -506,7 +506,7 @@ function findCodeInPatch(patch, codeSnippet) {
       endLine = startLine;
     } else {
       // We didn't find a complete match
-      return { startLine: null, endLine: null };
+      return { startLine: null, endLine: null, originalIndentation: null };
     }
   }
 
@@ -545,6 +545,18 @@ function findCodeInPatch(patch, codeSnippet) {
   }
 
   return { startLine, endLine, originalIndentation };
+}
+
+// Export internal functions for testing
+if (process.env.NODE_ENV === 'test') {
+  module.exports = {
+    __test: {
+      findCodeInPatch,
+      extractAddedLines,
+      shouldIgnoreFile,
+      loadIgnorePatterns
+    }
+  };
 }
 
 run();
