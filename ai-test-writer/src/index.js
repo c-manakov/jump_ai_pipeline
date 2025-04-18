@@ -547,26 +547,6 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
       file.endsWith(".ex"),
   );
 
-  // {
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline/application.ex': null,
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline/coverage_summary.ex': 'jump_ai_pipeline/test/jump_ai_pipeline/coverage_summary_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline/mailer.ex': null,
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline/repo.ex': null,
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline/uncovered_module.ex': 'jump_ai_pipeline/test/jump_ai_pipeline/uncovered_module_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/components/core_components.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/components/core_components_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/components/layouts.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/components/layouts_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/error_html.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/error_html_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/error_json.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/error_json_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/page_controller.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/page_controller_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/controllers/page_html.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/controllers/page_html_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/endpoint.ex': null,
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/gettext.ex': null,
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/router.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web/router_test.exs',
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/telemetry.ex': null,
-  //   'jump_ai_pipeline/lib/jump_ai_pipeline_web.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web_test.exs'
-  // }
-
   // Clean up paths to remove project prefix if present
   const cleanSourceFiles = sourceFiles.map(file => {
     const parts = file.split('/');
