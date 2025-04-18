@@ -6,6 +6,8 @@ const path = require("path");
 const glob = require("glob");
 const { marked } = require("marked");
 
+// let's export all of the functions here AI!
+
 async function run() {
   try {
     console.log("=== AI Code Analyzer starting ===");
