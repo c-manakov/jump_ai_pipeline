@@ -193,4 +193,205 @@ describe("extractAddedLines", () => {
   });
 });
 
-// so now let's test analyzeCodeForTests mocking all that we need to with rewire AI!
+describe("analyzeCodeForTests", () => {
+  const rewire = require("rewire");
+  let rewiredModule;
+  let mockAnthropic;
+  
+  beforeEach(() => {
+    rewiredModule = rewire("../src/index");
+    
+    // Mock Anthropic API
+    mockAnthropic = {
+      messages: {
+        create: jest.fn().mockResolvedValue({
+          content: [{ text: '{"tests":[], "create_new_file": false, "test_file_path": "test/example_test.exs", "complete_test_file": "test content", "lowest_confidence": 3}' }]
+        })
+      }
+    };
+    
+    // Mock fs functions
+    jest.spyOn(fs, "readFileSync").mockImplementation(() => "existing test content");
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    
+    // Mock console to prevent test output pollution
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+  
+  test("should call Anthropic API with correct parameters", async () => {
+    const code = "def sum(a, b), do: a + b";
+    const file = { filename: "lib/calculator.ex" };
+    const sourceToTestMap = { "lib/calculator.ex": "test/calculator_test.exs" };
+    
+    await indexModule.analyzeCodeForTests(
+      mockAnthropic,
+      code,
+      null,
+      [],
+      "full file content",
+      sourceToTestMap,
+      file
+    );
+    
+    expect(mockAnthropic.messages.create).toHaveBeenCalledTimes(1);
+    expect(mockAnthropic.messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: expect.any(String),
+        max_tokens: expect.any(Number),
+        system: expect.any(String),
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(code)
+          })
+        ])
+      })
+    );
+    
+    // Verify prompt contains necessary information
+    const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("full file content");
+    expect(prompt).toContain("test/calculator_test.exs");
+  });
+  
+  test("should handle existing test files", async () => {
+    const sourceToTestMap = { "lib/calculator.ex": "test/calculator_test.exs" };
+    
+    const result = await indexModule.analyzeCodeForTests(
+      mockAnthropic,
+      "code",
+      null,
+      [],
+      "full content",
+      sourceToTestMap,
+      { filename: "lib/calculator.ex" }
+    );
+    
+    expect(result).toEqual({
+      tests: [],
+      create_new_file: false,
+      test_file_path: "test/example_test.exs",
+      complete_test_file: "test content",
+      lowest_confidence: 3
+    });
+    
+    // Verify the prompt mentioned existing test file
+    const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("Existing test file content");
+  });
+  
+  test("should handle non-existent test files", async () => {
+    fs.existsSync.mockReturnValue(false);
+    
+    const sourceToTestMap = { "lib/calculator.ex": "test/calculator_test.exs" };
+    
+    await indexModule.analyzeCodeForTests(
+      mockAnthropic,
+      "code",
+      null,
+      [],
+      "full content",
+      sourceToTestMap,
+      { filename: "lib/calculator.ex" }
+    );
+    
+    // Verify the prompt mentioned no existing test file
+    const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("No existing test file found");
+  });
+  
+  test("should handle coverage data", async () => {
+    const coverageData = {
+      lines: [
+        [1, true],
+        [2, false],
+        [3, true]
+      ]
+    };
+    
+    const uncoveredLines = [2];
+    
+    await indexModule.analyzeCodeForTests(
+      mockAnthropic,
+      "code",
+      coverageData,
+      uncoveredLines,
+      "full content",
+      {},
+      { filename: "lib/calculator.ex" }
+    );
+    
+    // Verify the prompt contains uncovered lines information
+    const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("UNCOVERED");
+  });
+  
+  test("should handle different response formats", async () => {
+    const testCases = [
+      {
+        response: '{"tests":[{"target":"sum/2","explanation":"Tests basic addition","confidence":4}], "create_new_file": true, "test_file_path": "test/new_test.exs", "complete_test_file": "content", "lowest_confidence": 4}',
+        expected: {
+          tests: [
+            {
+              target: "sum/2",
+              explanation: "Tests basic addition",
+              confidence: 4
+            }
+          ],
+          create_new_file: true,
+          test_file_path: "test/new_test.exs",
+          complete_test_file: "content",
+          lowest_confidence: 4
+        }
+      },
+      {
+        response: '```json\n{"tests":[]}\n```',
+        expected: { tests: [] }
+      }
+    ];
+    
+    for (const testCase of testCases) {
+      mockAnthropic.messages.create.mockResolvedValue({
+        content: [{ text: testCase.response }]
+      });
+      
+      const result = await indexModule.analyzeCodeForTests(
+        mockAnthropic,
+        "code",
+        null,
+        [],
+        "full content",
+        {},
+        { filename: "lib/calculator.ex" }
+      );
+      
+      // Only check the properties that exist in the expected result
+      Object.keys(testCase.expected).forEach(key => {
+        expect(result[key]).toEqual(testCase.expected[key]);
+      });
+    }
+  });
+  
+  test("should handle parsing errors gracefully", async () => {
+    mockAnthropic.messages.create.mockResolvedValue({
+      content: [{ text: 'This is not JSON' }]
+    });
+    
+    const result = await indexModule.analyzeCodeForTests(
+      mockAnthropic,
+      "code",
+      null,
+      [],
+      "full content",
+      {},
+      { filename: "lib/calculator.ex" }
+    );
+    
+    expect(result).toEqual({ suggestions: [] });
+  });
+});
