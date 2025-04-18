@@ -281,24 +281,8 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
       continue;
     }
 
-    // we can extract this into a separate function AI!
     // Apply the original indentation to the suggestion
-    let formattedSuggestion = issue.suggestion;
-    if (originalIndentation && issue.suggestion) {
-      // Preserve the original indentation pattern for each line
-      const lines = issue.suggestion.split("\n");
-
-      formattedSuggestion = lines
-        .map((line, index) => {
-          // Don't add indentation to empty lines
-          if (line.trim() === "") return "";
-
-          // For all lines including the first one, apply proper indentation
-          const trimmedLine = line.replace(/^\s+/, "");
-          return originalIndentation + trimmedLine;
-        })
-        .join("\n");
-    }
+    let formattedSuggestion = formatSuggestionIndentation(issue.suggestion, originalIndentation);
 
     const body = `## AI Code Review: ${issue.rule_id}
 
@@ -544,6 +528,32 @@ function findCodeInPatch(patch, codeSnippet) {
   return { startLine, endLine, originalIndentation };
 }
 
+/**
+ * Formats a code suggestion to maintain the original indentation pattern
+ * @param {string} suggestion - The code suggestion to format
+ * @param {string} originalIndentation - The original indentation pattern
+ * @returns {string} - The formatted suggestion with proper indentation
+ */
+function formatSuggestionIndentation(suggestion, originalIndentation) {
+  if (!originalIndentation || !suggestion) {
+    return suggestion;
+  }
+
+  // Preserve the original indentation pattern for each line
+  const lines = suggestion.split("\n");
+
+  return lines
+    .map(line => {
+      // Don't add indentation to empty lines
+      if (line.trim() === "") return "";
+
+      // For all lines, apply proper indentation
+      const trimmedLine = line.replace(/^\s+/, "");
+      return originalIndentation + trimmedLine;
+    })
+    .join("\n");
+}
+
 // Export internal functions for testing
 if (process.env.NODE_ENV === "test") {
   module.exports = {
@@ -552,6 +562,7 @@ if (process.env.NODE_ENV === "test") {
       extractAddedLines,
       shouldIgnoreFile,
       loadIgnorePatterns,
+      formatSuggestionIndentation,
     },
   };
 }
@@ -570,4 +581,5 @@ module.exports = {
   loadIgnorePatterns,
   shouldIgnoreFile,
   findCodeInPatch,
+  formatSuggestionIndentation,
 };
