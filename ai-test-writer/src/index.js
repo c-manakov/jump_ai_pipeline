@@ -616,7 +616,7 @@ Example:
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const rawSourceToTestMap = JSON.parse(jsonText);
 
-    // Convert the cleaned paths back to original paths for the final map
+    // we don't need to convert anything back, the cleaning has already happened, bring the code that was here before we cleaned up the paths AI!
     const sourceToTestMap = {};
     sourceFiles.forEach((originalSourcePath) => {
       const cleanedPath = originalSourcePath.split("/").slice(1).join("/");
