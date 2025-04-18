@@ -22,7 +22,8 @@ async function run() {
     const octokit = github.getOctokit(githubToken);
     const context = github.context;
     const { owner, repo } = context.repo;
-    const pullNumber = context.payload.pull_request?.number;
+    const pullNumber = core.getInput("pr-number") || context.payload.pull_request?.number;
+    console.log(`Pull request number: ${pullNumber}`);
     console.log(context.payload.pull_request);
 
     // For local development:

@@ -13,6 +13,9 @@ inputs:
     description: 'Path to the coverage JSON file'
     default: 'cover/coverage.json'
     required: false
+  pr-number:
+    description: 'Pull request number (for workflow_dispatch events)'
+    required: false
 
 runs:
   using: 'node20'
