@@ -252,6 +252,7 @@ async function analyzeCodeForTests(
   }
 
   // Create the prompt for Claude
+  // instead of separate suggestions we need to work in context of files and the confidence score should be generated for the lowest confidence score of all the tests. Ask the AI to rate the score of each test but generate the full file with all of them. Our code than needs to find the lowest one and decide if we can proceed with automatic implementation AI!
   const prompt = `
 You are an expert automated QA engineer that helps developers improve their test coverage.
 
@@ -297,7 +298,7 @@ Do NOT create tests for uncovered lines that aren't in the code changes provided
    - Only use 4-5 for extremely simple and straightforward cases
    - Use 1-2 for complex cases involving external dependencies, concurrency, randomness or mocking
 
-Instead of providing search/replace blocks, provide the COMPLETE test file content as it should appear after your changes.
+Provide the COMPLETE test file content as it should appear after your changes.
 If creating a new file, provide the entire file content.
 If modifying an existing file, provide the entire file with your additions integrated properly.
 
@@ -319,13 +320,12 @@ If no test suggestions are needed, return {"suggestions": []}.
 ${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, integrate your new tests with the existing test structure."}
 `;
 
-
   // Call Claude API
   const message = await anthropic.messages.create({
     model: "claude-3-7-sonnet-latest",
     max_tokens: 4000,
     system:
-      "You are a test writing assistant that helps developers improve their test coverage.",
+      "You are an expert automated QA engineer that helps developers improve their test coverage.",
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -333,7 +333,7 @@ ${!testFileExists ? "If a new test file needs to be created, include complete fi
   try {
     // Extract JSON from the response
     const responseText = message.content[0].text;
-    console.log(responseText)
+    console.log(responseText);
     const jsonMatch =
       responseText.match(/```json\n([\s\S]*?)\n```/) ||
       responseText.match(/```\n([\s\S]*?)\n```/) ||
@@ -368,6 +368,7 @@ async function postTestSuggestions(
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
   for (const suggestion of analysis.suggestions) {
+    console.log(suggestion);
     // Determine action based on confidence level
     const confidenceLevel = suggestion.confidence || 0;
     const actionType =
