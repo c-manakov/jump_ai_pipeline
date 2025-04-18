@@ -5,8 +5,8 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-    # this doesn't work, let's try manually dispatching it AI!
-    types: [opened, synchronize, reopened]                                                                                                                                                                               
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 jobs:
   test:
     name: Build and test
