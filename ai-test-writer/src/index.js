@@ -1,8 +1,8 @@
-const core = require("@actions/core");
-const github = require("@actions/github");
-const { Anthropic } = require("@anthropic-ai/sdk");
-const fs = require("fs");
-const path = require("path");
+let core = require("@actions/core");
+let github = require("@actions/github");
+let { Anthropic } = require("@anthropic-ai/sdk");
+let fs = require("fs");
+let path = require("path");
 
 async function run() {
   try {
@@ -10,7 +10,6 @@ async function run() {
     console.log("Node version:", process.version);
     console.log("Current directory:", process.cwd());
 
-    // For GitHub Actions:
     const githubToken =
       core.getInput("github-token", { required: true }) ||
       process.env.GITHUB_TOKEN;
@@ -22,7 +21,8 @@ async function run() {
     const octokit = github.getOctokit(githubToken);
     const context = github.context;
     const { owner, repo } = context.repo;
-    const pullNumber = core.getInput("pr-number") || context.payload.pull_request?.number;
+    const pullNumber =
+      core.getInput("pr-number") || context.payload.pull_request?.number;
     console.log(`Pull request number: ${pullNumber}`);
 
     if (!githubToken) {
@@ -64,7 +64,6 @@ async function run() {
       pull_number: pullNumber,
     });
 
-    // Load coverage data
     let coverageData = [];
     try {
       if (fs.existsSync(coveragePath)) {
@@ -78,9 +77,8 @@ async function run() {
       console.error(`Error loading coverage data: ${error.message}`);
     }
 
-    // so what we also now need to do before we actually analyze any of the files is as follows:
     // Generate a repository map and find test files for source files
-    const repoMap = await generateRepoMap(octokit, owner, repo);
+    const repoMap = generateRepoMap(octokit, owner, repo);
     const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
 
     console.log("Source to test file mapping:");
@@ -89,13 +87,12 @@ async function run() {
     for (const file of files) {
       if (file.status === "removed") continue;
 
-      // Only process Elixir files
+      // Only process Elixir module files
       if (!file.filename.endsWith(".ex")) {
         console.log(`Skipping non-ex file: ${file.filename}`);
         continue;
       }
 
-      // Extract added lines
       const addedLines = extractAddedLines(file.patch);
       if (addedLines.length === 0) continue;
 
@@ -103,7 +100,6 @@ async function run() {
         `Analyzing ${file.filename} (${addedLines.length} added lines)`,
       );
 
-      // Find coverage data for this file
       const fileCoverage = coverageData.find(
         (item) => item.file === file.filename,
       );
@@ -111,7 +107,6 @@ async function run() {
       // Get the full file content for better context
       let fileContent = "";
       try {
-        // Read file content from filesystem
         const parentDir = path.resolve(process.cwd(), "..");
         console.log(`Parent directory contents (${parentDir}):`);
         const dirContents = fs.readdirSync(parentDir);
@@ -128,7 +123,6 @@ async function run() {
         );
       }
 
-      // Extract uncovered lines from coverage data
       let uncoveredLines = [];
       if (fileCoverage && fileCoverage.lines) {
         uncoveredLines = fileCoverage.lines
@@ -140,7 +134,6 @@ async function run() {
         );
       }
 
-      // Analyze code with Claude and suggest tests
       const analysis = await analyzeCodeForTests(
         anthropic,
         addedLines.join("\n"),
@@ -151,7 +144,6 @@ async function run() {
         file,
       );
 
-      // Post comments if test suggestions found
       if (analysis.tests && analysis.tests.length > 0) {
         await postTestSuggestions(
           octokit,
@@ -166,7 +158,9 @@ async function run() {
 
     // Implement all queued test files in a single commit
     if (pendingTestFiles.length > 0) {
-      console.log(`Implementing ${pendingTestFiles.length} queued test files...`);
+      console.log(
+        `Implementing ${pendingTestFiles.length} queued test files...`,
+      );
       await implementPendingTestFiles(octokit, owner, repo, pullNumber);
     }
 
@@ -246,7 +240,6 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
-  // Create the prompt for Claude
   const prompt = `
 You are an expert automated QA engineer that helps developers improve their test coverage.
 
@@ -317,7 +310,6 @@ If no test suggestions are needed, return {"suggestions": []}.
 ${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, integrate your new tests with the existing test structure."}
 `;
 
-  // Call Claude API
   const message = await anthropic.messages.create({
     model: "claude-3-7-sonnet-latest",
     max_tokens: 4000,
@@ -326,9 +318,7 @@ ${!testFileExists ? "If a new test file needs to be created, include complete fi
     messages: [{ role: "user", content: prompt }],
   });
 
-  // Parse the response
   try {
-    // Extract JSON from the response
     const responseText = message.content[0].text;
     console.log(responseText);
     const jsonMatch =
@@ -372,21 +362,21 @@ async function postTestSuggestions(
         ? "Suggested Implementation"
         : "Manual Implementation Required";
 
-  // Create a summary of the tests
   const testSummary = analysis.tests
     ? analysis.tests
         .map(
-          test => `- **${test.target}** (Confidence: ${test.confidence}/5): ${test.explanation.split('.')[0]}.`
+          (test) =>
+            `- **${test.target}** (Confidence: ${test.confidence}/5): ${test.explanation.split(".")[0]}.`,
         )
-        .join('\n')
-    : '';
+        .join("\n")
+    : "";
 
-  const body = `## AI Test Suggestions
+  const body = `## Test Suggestions
 
 ${testSummary}
 
 ### Overall Confidence Level: ${confidenceLevel}/5
-${actionType}${confidenceLevel >= 4 ? ' (Will be automatically implemented)' : ''}
+${actionType}${confidenceLevel >= 4 ? " (Will be automatically implemented)" : ""}
 
 ### Complete Test File:
 \`\`\`elixir
@@ -396,15 +386,14 @@ ${analysis.complete_test_file}
 ${
   analysis.create_new_file
     ? `
-### Note: This ${confidenceLevel >= 4 ? 'will create' : 'requires creating'} a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
+### Note: This ${confidenceLevel >= 4 ? "will create" : "requires creating"} a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
 `
     : `
-### This ${confidenceLevel >= 4 ? 'will update' : 'updates'} the existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
+### This ${confidenceLevel >= 4 ? "will update" : "updates"} the existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
 `
 }`;
 
   try {
-    // Create a review comment at the end of the file
     await octokit.rest.pulls.createReviewComment({
       owner,
       repo,
@@ -424,11 +413,10 @@ ${
       console.log(
         `High confidence tests - eligible for automatic implementation`,
       );
-      // Queue the test file for implementation
       await queueTestFileForImplementation(
         analysis.test_file_path,
         analysis.complete_test_file,
-        file.filename
+        file.filename,
       );
     }
   } catch (error) {
@@ -458,61 +446,39 @@ function getLastLineNumber(patch) {
   return Math.max(currentLine, 1);
 }
 
-/**
- * Generate a map of all files in the repository
- */
-async function generateRepoMap(octokit, owner, repo) {
+function generateRepoMap() {
   console.log("Generating repository file map...");
 
   try {
     // Always use the filesystem since the action has access to the repo
-    {
-      const files = [];
-      const rootDir = path.resolve(process.cwd(), "..");
+    const files = [];
+    const rootDir = path.resolve(process.cwd(), "..");
 
-      // Simple recursive function to get all files
-      const getFilesRecursively = (dir) => {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const getFilesRecursively = (dir) => {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
 
-        for (const entry of entries) {
-          const fullPath = path.join(dir, entry.name);
-          const relativePath = path.relative(rootDir, fullPath);
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.relative(rootDir, fullPath);
 
-          // Skip hidden directories and node_modules
-          if (
-            entry.name.startsWith(".") ||
-            entry.name === "node_modules" ||
-            entry.name === "_build" ||
-            entry.name === "deps"
-          ) {
-            continue;
-          }
-
-          if (entry.isDirectory()) {
-            getFilesRecursively(fullPath);
-          } else if (entry.isFile()) {
-            files.push(relativePath);
-          }
+        if (
+          entry.name.startsWith(".") ||
+          entry.name === "node_modules" ||
+          entry.name === "_build" ||
+          entry.name === "deps"
+        ) {
+          continue;
         }
-      };
 
-      getFilesRecursively(rootDir);
-      console.log(`Found ${files.length} files in the repository`);
-      return files;
-    }
+        if (entry.isDirectory()) {
+          getFilesRecursively(fullPath);
+        } else if (entry.isFile()) {
+          files.push(relativePath);
+        }
+      }
+    };
 
-    // For GitHub Actions, use the GitHub API
-    const { data: repoContent } = await octokit.rest.git.getTree({
-      owner,
-      repo,
-      tree_sha: "HEAD",
-      recursive: "1",
-    });
-
-    const files = repoContent.tree
-      .filter((item) => item.type === "blob")
-      .map((item) => item.path);
-
+    getFilesRecursively(rootDir);
     console.log(`Found ${files.length} files in the repository`);
     return files;
   } catch (error) {
@@ -527,7 +493,6 @@ async function generateRepoMap(octokit, owner, repo) {
 async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log("Mapping source files to test files...");
 
-  // Filter to only include Elixir files
   const elixirFiles = repoFiles
     .filter((file) => file.endsWith(".ex") || file.endsWith(".exs"))
     .map((file) => {
@@ -560,7 +525,6 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   console.log(sourceFiles);
   console.log(testFiles);
 
-  // If there are too many files, we might need to process them in batches
   if (sourceFiles.length > 150) {
     console.log(
       "Too many source files to process at once, using heuristic matching instead",
@@ -568,7 +532,6 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
     return createHeuristicSourceToTestMap(sourceFiles, testFiles);
   }
 
-  // Create a prompt for Claude to map source files to test files
   const prompt = `
 You are a code organization expert. I need you to map source files to their corresponding test files in an Elixir project.
 
@@ -597,7 +560,6 @@ Example:
 `;
 
   try {
-    // Call Claude API
     const message = await anthropic.messages.create({
       model: "claude-3-7-sonnet-latest",
       max_tokens: 4000,
@@ -606,7 +568,6 @@ Example:
       messages: [{ role: "user", content: prompt }],
     });
 
-    // Parse the response
     const responseText = message.content[0].text;
     const jsonMatch =
       responseText.match(/```json\n([\s\S]*?)\n```/) ||
@@ -621,7 +582,6 @@ Example:
     return sourceToTestMap;
   } catch (error) {
     console.error(`Error mapping source files to test files: ${error.message}`);
-    // Fall back to heuristic matching
     return createHeuristicSourceToTestMap(sourceFiles, testFiles);
   }
 }
@@ -639,21 +599,17 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
       parts.length > 1 && parts[0].includes("_") ? parts[0] + "/" : "";
     const relativePath = projectPrefix ? parts.slice(1).join("/") : sourceFile;
 
-    // Convert lib/app/module.ex to test/app/module_test.exs
     let expectedTestFile = relativePath
       .replace(/^lib\//, "test/")
       .replace(/\.ex$/, "_test.exs");
 
-    // Add project prefix back if it existed
     if (projectPrefix) {
       expectedTestFile = projectPrefix + expectedTestFile;
     }
 
-    // Check if the expected test file exists
     if (testFiles.includes(expectedTestFile)) {
       sourceToTestMap[sourceFile] = expectedTestFile;
     } else {
-      // Try other heuristics or set to null if no match
       sourceToTestMap[sourceFile] = null;
     }
   }
@@ -661,9 +617,6 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
   return sourceToTestMap;
 }
 
-/**
- * Collects test files to be implemented
- */
 const pendingTestFiles = [];
 
 /**
@@ -672,35 +625,32 @@ const pendingTestFiles = [];
 async function queueTestFileForImplementation(
   testFilePath,
   testFileContent,
-  sourceFilePath
+  sourceFilePath,
 ) {
   console.log(`Queueing test file for implementation: ${testFilePath}`);
-  
+
   pendingTestFiles.push({
     testFilePath,
     testFileContent,
-    sourceFilePath
+    sourceFilePath,
   });
-  
+
   return true;
 }
 
 /**
  * Implements all queued test files in a single commit
  */
-async function implementPendingTestFiles(
-  octokit,
-  owner,
-  repo,
-  pullNumber
-) {
+async function implementPendingTestFiles(octokit, owner, repo, pullNumber) {
   if (pendingTestFiles.length === 0) {
     console.log("No test files to implement");
     return null;
   }
-  
-  console.log(`Implementing ${pendingTestFiles.length} test files in a single commit`);
-  
+
+  console.log(
+    `Implementing ${pendingTestFiles.length} test files in a single commit`,
+  );
+
   try {
     // Get the current branch name from the PR
     const { data: pullRequest } = await octokit.rest.pulls.get({
@@ -708,97 +658,100 @@ async function implementPendingTestFiles(
       repo,
       pull_number: pullNumber,
     });
-    
+
     const branchName = pullRequest.head.ref;
     console.log(`Target branch for commit: ${branchName}`);
-    
+
     // Get the latest commit SHA to create a new tree based on it
     const { data: refData } = await octokit.rest.git.getRef({
       owner,
       repo,
-      ref: `heads/${branchName}`
+      ref: `heads/${branchName}`,
     });
-    
+
     const latestCommitSha = refData.object.sha;
     console.log(`Latest commit SHA: ${latestCommitSha}`);
-    
+
     // Get the commit that the latest commit points to
     const { data: latestCommit } = await octokit.rest.git.getCommit({
       owner,
       repo,
-      commit_sha: latestCommitSha
+      commit_sha: latestCommitSha,
     });
-    
+
     const treeSha = latestCommit.tree.sha;
-    
+
     // Create blobs for each file
     const fileBlobs = await Promise.all(
       pendingTestFiles.map(async (file) => {
         const { data: blob } = await octokit.rest.git.createBlob({
           owner,
           repo,
-          content: Buffer.from(file.testFileContent).toString('base64'),
-          encoding: 'base64'
+          content: Buffer.from(file.testFileContent).toString("base64"),
+          encoding: "base64",
         });
-        
+
         return {
           path: file.testFilePath,
-          mode: '100644', // Regular file
-          type: 'blob',
-          sha: blob.sha
+          mode: "100644", // Regular file
+          type: "blob",
+          sha: blob.sha,
         };
-      })
+      }),
     );
-    
+
     // Create a new tree with the new blobs
     const { data: newTree } = await octokit.rest.git.createTree({
       owner,
       repo,
       base_tree: treeSha,
-      tree: fileBlobs
+      tree: fileBlobs,
     });
-    
+
     // Create a commit with the new tree
-    const sourceFiles = pendingTestFiles.map(file => file.sourceFilePath).join(', ');
-    const commitMessage = `test: Add tests for ${sourceFiles} #ai-test`;
-    
+    const sourceFiles = pendingTestFiles
+      .map((file) => file.sourceFilePath)
+      .join(", ");
+    const commitMessage = `test: Add tests for ${sourceFiles}`;
+
     const { data: newCommit } = await octokit.rest.git.createCommit({
       owner,
       repo,
       message: commitMessage,
       tree: newTree.sha,
-      parents: [latestCommitSha]
+      parents: [latestCommitSha],
     });
-    
+
     // Update the reference to point to the new commit
     await octokit.rest.git.updateRef({
       owner,
       repo,
       ref: `heads/${branchName}`,
-      sha: newCommit.sha
+      sha: newCommit.sha,
     });
-    
-    console.log(`Successfully implemented ${pendingTestFiles.length} test files in a single commit`);
+
+    console.log(
+      `Successfully implemented ${pendingTestFiles.length} test files in a single commit`,
+    );
     console.log(`Commit SHA: ${newCommit.sha}`);
-    
+
     // Trigger workflow run to test the new tests
     try {
       console.log(`Triggering workflow run to test the new tests...`);
       await octokit.rest.actions.createWorkflowDispatch({
         owner,
         repo,
-        workflow_id: 'elixir-tests.yml',
-        ref: branchName
+        workflow_id: "elixir-tests.yml",
+        ref: branchName,
       });
       console.log(`Successfully triggered workflow run`);
     } catch (error) {
       console.error(`Error triggering workflow run: ${error.message}`);
       // Non-fatal error, continue
     }
-    
-    // Clear the pending files
+
     pendingTestFiles.length = 0;
-    
+
     return newCommit;
   } catch (error) {
     console.error(`Error implementing test files: ${error.message}`);
@@ -807,4 +760,19 @@ async function implementPendingTestFiles(
   }
 }
 
-run();
+if (process.env.NODE_ENV !== "test") {
+  run();
+}
+
+module.exports = {
+  run,
+  extractAddedLines,
+  analyzeCodeForTests,
+  postTestSuggestions,
+  generateRepoMap,
+  mapSourceFilesToTestFiles,
+  createHeuristicSourceToTestMap,
+  queueTestFileForImplementation,
+  implementPendingTestFiles,
+  getLastLineNumber
+};

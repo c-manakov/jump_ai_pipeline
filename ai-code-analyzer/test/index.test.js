@@ -253,7 +253,7 @@ describe("postComments", () => {
       owner: "owner",
       repo: "repo",
       pull_number: 123,
-      body: expect.stringContaining("AI Code Review: test-rule"),
+      body: expect.stringContaining("Code Review: test-rule"),
       commit_id: "test-commit-sha",
       path: "test.js",
       line: 2,
@@ -373,7 +373,7 @@ describe("postComments", () => {
       owner: "owner",
       repo: "repo",
       pull_number: 123,
-      body: expect.stringContaining("AI Code Review: test-rule"),
+      body: expect.stringContaining("Code Review: test-rule"),
       commit_id: "test-commit-sha",
       path: "test.js",
       start_line: 2,
@@ -636,5 +636,230 @@ describe("extractAddedLines", () => {
  const c = 3;`;
 
     expect(indexModule.extractAddedLines(patch)).toEqual([]);
+  });
+});
+
+describe("run", () => {
+  let rewiredModule;
+  let mockOctokit;
+  let mockAnthropic;
+  let mockCore;
+  let mockGithub;
+  
+  beforeEach(() => {
+    rewiredModule = rewire("../src/index");
+    
+    mockOctokit = {
+      rest: {
+        pulls: {
+          listFiles: jest.fn().mockResolvedValue({ data: [] }),
+          get: jest.fn().mockResolvedValue({ data: { head: { sha: "test-sha" } } }),
+          createReviewComment: jest.fn().mockResolvedValue({})
+        }
+      }
+    };
+    
+    mockAnthropic = {
+      messages: {
+        create: jest.fn().mockResolvedValue({
+          content: [{ text: '{"issues":[]}' }]
+        })
+      }
+    };
+    
+    mockCore = {
+      getInput: jest.fn((name, options) => {
+        if (name === "github-token") return "mock-token";
+        if (name === "anthropic-api-key") return "mock-api-key";
+        if (name === "rules-path") return ".ai-code-rules";
+        return "";
+      }),
+      setFailed: jest.fn()
+    };
+    
+    mockGithub = {
+      getOctokit: jest.fn().mockReturnValue(mockOctokit),
+      context: {
+        repo: { owner: "test-owner", repo: "test-repo" },
+        payload: { pull_request: { number: 123 } }
+      }
+    };
+    
+    rewiredModule.__set__("core", mockCore);
+    rewiredModule.__set__("github", mockGithub);
+    rewiredModule.__set__("Anthropic", function() {
+      return mockAnthropic;
+    });
+    
+    rewiredModule.__set__("loadRules", jest.fn().mockResolvedValue([
+      { id: "rule1", title: "Rule 1", content: "Rule 1 content" }
+    ]));
+    rewiredModule.__set__("loadIgnorePatterns", jest.fn().mockReturnValue([]));
+    rewiredModule.__set__("extractAddedLines", jest.fn().mockReturnValue(["const x = 1;"]));
+    rewiredModule.__set__("analyzeCode", jest.fn().mockResolvedValue({ issues: [] }));
+    rewiredModule.__set__("postComments", jest.fn().mockResolvedValue(undefined));
+    
+    jest.spyOn(fs, "readFileSync").mockImplementation(() => "mock file content");
+    
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+  
+  test("should process PR files and analyze code", async () => {
+    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
+      data: [
+        { 
+          filename: "test.js", 
+          status: "modified",
+          patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;"
+        }
+      ]
+    });
+    
+    const run = rewiredModule.__get__("run");
+    
+    await run();
+    
+    expect(mockGithub.getOctokit).toHaveBeenCalledWith("mock-token");
+    expect(mockOctokit.rest.pulls.listFiles).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      pull_number: 123
+    });
+    
+    const loadRules = rewiredModule.__get__("loadRules");
+    expect(loadRules).toHaveBeenCalledWith(".ai-code-rules");
+    
+    const extractAddedLines = rewiredModule.__get__("extractAddedLines");
+    expect(extractAddedLines).toHaveBeenCalledWith(expect.any(String));
+    
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    expect(analyzeCode).toHaveBeenCalledWith(
+      mockAnthropic,
+      expect.any(String),
+      expect.any(Array),
+      expect.any(String)
+    );
+  });
+  
+  test("should skip removed files", async () => {
+    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
+      data: [
+        { 
+          filename: "removed.js", 
+          status: "removed",
+          patch: "@@ -1,3 +0,0 @@\n-const a = 1;\n-const b = 2;\n-const c = 3;"
+        }
+      ]
+    });
+    
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    expect(analyzeCode).not.toHaveBeenCalled();
+  });
+  
+  test("should skip files with no added lines", async () => {
+    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
+      data: [
+        { 
+          filename: "unchanged.js", 
+          status: "modified",
+          patch: "@@ -1,3 +1,3 @@\n const a = 1;\n const b = 2;\n const c = 3;"
+        }
+      ]
+    });
+    
+    rewiredModule.__get__("extractAddedLines").mockReturnValue([]);
+    
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    expect(analyzeCode).not.toHaveBeenCalled();
+  });
+  
+  test("should skip files that match ignore patterns", async () => {
+    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
+      data: [
+        { 
+          filename: "node_modules/package.js", 
+          status: "modified",
+          patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;"
+        }
+      ]
+    });
+    
+    rewiredModule.__set__("loadIgnorePatterns", jest.fn().mockReturnValue(["node_modules/*"]));
+    rewiredModule.__set__("shouldIgnoreFile", jest.fn().mockReturnValue(true));
+    
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    expect(analyzeCode).not.toHaveBeenCalled();
+  });
+  
+  test("should post comments when issues are found", async () => {
+    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
+      data: [
+        { 
+          filename: "test.js", 
+          status: "modified",
+          patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;"
+        }
+      ]
+    });
+    
+    rewiredModule.__set__("analyzeCode", jest.fn().mockResolvedValue({
+      issues: [
+        {
+          rule_id: "rule1",
+          code: "const b = 2;",
+          explanation: "Test explanation",
+          suggestion: "const b = 2; // Fixed"
+        }
+      ]
+    }));
+    
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    const postComments = rewiredModule.__get__("postComments");
+    expect(postComments).toHaveBeenCalledWith(
+      mockOctokit,
+      "test-owner",
+      "test-repo",
+      123,
+      expect.objectContaining({ filename: "test.js" }),
+      expect.objectContaining({ 
+        issues: expect.arrayContaining([
+          expect.objectContaining({ rule_id: "rule1" })
+        ]) 
+      })
+    );
+  });
+  
+  test("should handle errors gracefully", async () => {
+    mockOctokit.rest.pulls.listFiles.mockRejectedValue(new Error("Test error"));
+    
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Test error"));
+  });
+  
+  test("should handle missing required inputs", async () => {
+    mockCore.getInput.mockImplementation(() => "");
+    
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GitHub token is required"));
   });
 });

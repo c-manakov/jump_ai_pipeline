@@ -1,4 +1,4 @@
-# AI Code Analyzer ignore file
+# Code Analyzer ignore file
 # Similar to .gitignore, this file specifies patterns for files that should be ignored by the analyzer
 
 # Ignore node_modules
