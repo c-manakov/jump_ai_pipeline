@@ -123,7 +123,11 @@ async function run() {
       let fileContent = "";
       try {
         // Read file content from filesystem
-        // add a log here that fully lists the contexts of process.cwd() + ".." AI!
+        const parentDir = path.resolve(process.cwd(), "..");
+        console.log(`Parent directory contents (${parentDir}):`);
+        const dirContents = fs.readdirSync(parentDir);
+        console.log(dirContents);
+        
         const resolvedPath = path.resolve(process.cwd(), "..", file.filename);
         fileContent = fs.readFileSync(resolvedPath, "utf8");
         console.log(
