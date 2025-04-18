@@ -559,4 +559,5 @@ if (process.env.NODE_ENV === 'test') {
   };
 }
 
+// actually add a condition here that if the environment is test we don't run it  AI!
 run();
