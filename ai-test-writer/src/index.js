@@ -218,7 +218,6 @@ async function analyzeCodeForTests(
       try {
         const resolvedTestPath = path.resolve(
           process.cwd(),
-          "..",
           testFilePath,
         );
         testFileContent = fs.readFileSync(resolvedTestPath, "utf8");
