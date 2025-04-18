@@ -105,6 +105,8 @@ async function run() {
       const addedLines = extractAddedLines(file.patch);
       if (addedLines.length === 0) continue;
 
+      // apart from extracting added lines let's also read the full file content from the filesystem AI!
+
       console.log(
         `Analyzing ${file.filename} (${addedLines.length} added lines)`,
       );
