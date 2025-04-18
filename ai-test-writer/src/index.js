@@ -763,4 +763,19 @@ async function implementPendingTestFiles(octokit, owner, repo, pullNumber) {
   }
 }
 
-run();
+if (process.env.NODE_ENV !== "test") {
+  run();
+}
+
+module.exports = {
+  run,
+  extractAddedLines,
+  analyzeCodeForTests,
+  postTestSuggestions,
+  generateRepoMap,
+  mapSourceFilesToTestFiles,
+  createHeuristicSourceToTestMap,
+  queueTestFileForImplementation,
+  implementPendingTestFiles,
+  getLastLineNumber
+};
