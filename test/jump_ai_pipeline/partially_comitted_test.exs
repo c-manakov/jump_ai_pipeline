@@ -2,6 +2,18 @@ defmodule JumpAiPipeline.PartiallyComittedTest do
   use ExUnit.Case
   alias JumpAiPipeline.PartiallyComitted
 
+  describe "old_function/2" do
+    test "sums the counts of two lists" do
+      assert PartiallyComitted.old_function([1, 2, 3], [4, 5]) == 5
+    end
+
+    test "works with empty lists" do
+      assert PartiallyComitted.old_function([], []) == 0
+      assert PartiallyComitted.old_function([], [1, 2]) == 2
+      assert PartiallyComitted.old_function([1, 2, 3], []) == 3
+    end
+  end
+
   describe "another_function/2" do
     test "concatenates two lists" do
       assert PartiallyComitted.another_function([1, 2], [3, 4]) == [1, 2, 3, 4]
