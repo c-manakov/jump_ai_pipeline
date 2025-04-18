@@ -89,6 +89,7 @@ jobs:
       - name: Build action
         run: cd ai-test-writer && npm run build
           
+        # now here if the last commit has #ai-test hashtag in the name we want to avoid running this action AI!
       - name: AI Test Writer
         uses: ./ai-test-writer
         if: github.event_name == 'pull_request'
