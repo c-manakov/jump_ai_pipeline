@@ -392,4 +392,171 @@ describe("postComments", () => {
   });
 });
 
-// this works perfectly, thank you. Now let's test analyzeCode using the same approach AI!
+describe("analyzeCode", () => {
+  // Use rewire to access and modify private functions
+  let rewiredModule;
+  let mockAnthropic;
+  
+  beforeEach(() => {
+    // Create a new rewired instance for each test
+    rewiredModule = rewire("../src/index");
+    
+    // Mock Anthropic client
+    mockAnthropic = {
+      messages: {
+        create: jest.fn().mockResolvedValue({
+          content: [{ text: '{"issues":[]}' }]
+        })
+      }
+    };
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("should call Anthropic API with correct parameters", async () => {
+    // Get the analyzeCode function from the rewired module
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    
+    // Setup test data
+    const code = "const x = 1;";
+    const rules = [
+      { id: "rule1", title: "Rule 1", content: "Don't do X" },
+      { id: "rule2", title: "Rule 2", content: "Always do Y" }
+    ];
+    const fullFileContent = "const a = 0;\nconst x = 1;\nconst y = 2;";
+    
+    // Call the function
+    await analyzeCode(mockAnthropic, code, rules, fullFileContent);
+    
+    // Verify Anthropic API was called with correct parameters
+    expect(mockAnthropic.messages.create).toHaveBeenCalledTimes(1);
+    expect(mockAnthropic.messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: expect.any(String),
+        max_tokens: expect.any(Number),
+        system: expect.any(String),
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining(code)
+          })
+        ])
+      })
+    );
+    
+    // Verify the prompt contains the rules
+    const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("Rule 1");
+    expect(prompt).toContain("Rule 2");
+    expect(prompt).toContain("Don't do X");
+    expect(prompt).toContain("Always do Y");
+    expect(prompt).toContain(fullFileContent);
+  });
+
+  test("should parse response correctly when issues are found", async () => {
+    // Mock Anthropic response with issues
+    mockAnthropic.messages.create.mockResolvedValue({
+      content: [{ 
+        text: '```json\n{"issues":[{"rule_id":"rule1","code":"const x = 1;","explanation":"X is not allowed","suggestion":"const y = 1;"}]}\n```' 
+      }]
+    });
+    
+    // Get the analyzeCode function from the rewired module
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    
+    // Call the function
+    const result = await analyzeCode(
+      mockAnthropic, 
+      "const x = 1;", 
+      [{ id: "rule1", title: "Rule 1", content: "Don't do X" }]
+    );
+    
+    // Verify the result
+    expect(result).toEqual({
+      issues: [
+        {
+          rule_id: "rule1",
+          code: "const x = 1;",
+          explanation: "X is not allowed",
+          suggestion: "const y = 1;"
+        }
+      ]
+    });
+  });
+
+  test("should handle different JSON response formats", async () => {
+    // Test with different JSON formats that Claude might return
+    const testCases = [
+      // JSON without code block
+      { 
+        response: '{"issues":[{"rule_id":"rule1","code":"const x = 1;","explanation":"X is not allowed","suggestion":"const y = 1;"}]}',
+        expected: {
+          issues: [
+            {
+              rule_id: "rule1",
+              code: "const x = 1;",
+              explanation: "X is not allowed",
+              suggestion: "const y = 1;"
+            }
+          ]
+        }
+      },
+      // JSON in code block without language
+      {
+        response: '```\n{"issues":[]}\n```',
+        expected: { issues: [] }
+      },
+      // JSON in code block with language
+      {
+        response: '```json\n{"issues":[]}\n```',
+        expected: { issues: [] }
+      }
+    ];
+    
+    // Get the analyzeCode function from the rewired module
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    
+    for (const testCase of testCases) {
+      // Mock Anthropic response
+      mockAnthropic.messages.create.mockResolvedValue({
+        content: [{ text: testCase.response }]
+      });
+      
+      // Call the function
+      const result = await analyzeCode(
+        mockAnthropic, 
+        "const x = 1;", 
+        [{ id: "rule1", title: "Rule 1", content: "Don't do X" }]
+      );
+      
+      // Verify the result
+      expect(result).toEqual(testCase.expected);
+    }
+  });
+
+  test("should handle parsing errors gracefully", async () => {
+    // Mock Anthropic response with invalid JSON
+    mockAnthropic.messages.create.mockResolvedValue({
+      content: [{ text: 'This is not JSON' }]
+    });
+    
+    // Mock console.error to prevent test output pollution
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    // Get the analyzeCode function from the rewired module
+    const analyzeCode = rewiredModule.__get__("analyzeCode");
+    
+    // Call the function
+    const result = await analyzeCode(
+      mockAnthropic, 
+      "const x = 1;", 
+      [{ id: "rule1", title: "Rule 1", content: "Don't do X" }]
+    );
+    
+    // Verify the result is a default empty issues array
+    expect(result).toEqual({ issues: [] });
+    expect(console.error).toHaveBeenCalled();
+  });
+});
