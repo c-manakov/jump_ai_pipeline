@@ -201,7 +201,6 @@ describe("analyzeCodeForTests", () => {
   beforeEach(() => {
     rewiredModule = rewire("../src/index");
     
-    // Mock Anthropic API
     mockAnthropic = {
       messages: {
         create: jest.fn().mockResolvedValue({
@@ -210,11 +209,9 @@ describe("analyzeCodeForTests", () => {
       }
     };
     
-    // Mock fs functions
     jest.spyOn(fs, "readFileSync").mockImplementation(() => "existing test content");
     jest.spyOn(fs, "existsSync").mockReturnValue(true);
     
-    // Mock console to prevent test output pollution
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -253,7 +250,6 @@ describe("analyzeCodeForTests", () => {
       })
     );
     
-    // Verify prompt contains necessary information
     const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
     expect(prompt).toContain("full file content");
     expect(prompt).toContain("test/calculator_test.exs");
@@ -280,7 +276,6 @@ describe("analyzeCodeForTests", () => {
       lowest_confidence: 3
     });
     
-    // Verify the prompt mentioned existing test file
     const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
     expect(prompt).toContain("Existing test file content");
   });
@@ -306,7 +301,6 @@ describe("analyzeCodeForTests", () => {
       { filename: "lib/calculator.ex" }
     );
     
-    // Verify the prompt contains uncovered lines information
     const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
     expect(prompt).toContain("UNCOVERED");
   });
@@ -350,7 +344,6 @@ describe("analyzeCodeForTests", () => {
         { filename: "lib/calculator.ex" }
       );
       
-      // Only check the properties that exist in the expected result
       Object.keys(testCase.expected).forEach(key => {
         expect(result[key]).toEqual(testCase.expected[key]);
       });
@@ -377,7 +370,6 @@ describe("analyzeCodeForTests", () => {
 });
 
 describe("run", () => {
-  // Use rewire to access and modify private functions
   let rewiredModule;
   let mockOctokit;
   let mockAnthropic;
@@ -385,10 +377,8 @@ describe("run", () => {
   let mockGithub;
   
   beforeEach(() => {
-    // Create a new rewired instance for each test
     rewiredModule = rewire("../src/index");
     
-    // Mock dependencies
     mockOctokit = {
       rest: {
         pulls: {
@@ -437,14 +427,12 @@ describe("run", () => {
       }
     };
     
-    // Replace the internal dependencies with our mocks
     rewiredModule.__set__("core", mockCore);
     rewiredModule.__set__("github", mockGithub);
     rewiredModule.__set__("Anthropic", function() {
       return mockAnthropic;
     });
     
-    // Mock other functions
     rewiredModule.__set__("generateRepoMap", jest.fn().mockReturnValue(["lib/app/accounts.ex"]));
     rewiredModule.__set__("mapSourceFilesToTestFiles", jest.fn().mockResolvedValue({
       "lib/app/accounts.ex": "test/app/accounts_test.exs"
@@ -460,12 +448,10 @@ describe("run", () => {
     rewiredModule.__set__("postTestSuggestions", jest.fn().mockResolvedValue(undefined));
     rewiredModule.__set__("implementPendingTestFiles", jest.fn().mockResolvedValue(undefined));
     
-    // Mock fs functions
     jest.spyOn(fs, "readFileSync").mockImplementation(() => "mock file content");
     jest.spyOn(fs, "existsSync").mockImplementation(() => true);
     jest.spyOn(fs, "readdirSync").mockImplementation(() => ["lib", "test"]);
     
-    // Mock console methods to prevent test output pollution
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -475,7 +461,6 @@ describe("run", () => {
   });
   
   test("should process PR files and analyze code for tests", async () => {
-    // Setup mock PR files
     mockOctokit.rest.pulls.listFiles.mockResolvedValue({
       data: [
         { 
@@ -486,13 +471,10 @@ describe("run", () => {
       ]
     });
     
-    // Get the run function from the rewired module
     const run = rewiredModule.__get__("run");
     
-    // Call the function
     await run();
     
-    // Verify the correct functions were called
     expect(mockGithub.getOctokit).toHaveBeenCalledWith("mock-token");
     expect(mockOctokit.rest.pulls.listFiles).toHaveBeenCalledWith({
       owner: "test-owner",
@@ -525,7 +507,6 @@ describe("run", () => {
   });
   
   test("should skip removed files", async () => {
-    // Setup mock PR files with a removed file
     mockOctokit.rest.pulls.listFiles.mockResolvedValue({
       data: [
         { 
@@ -539,13 +520,11 @@ describe("run", () => {
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify analyzeCodeForTests was not called
     const analyzeCodeForTests = rewiredModule.__get__("analyzeCodeForTests");
     expect(analyzeCodeForTests).not.toHaveBeenCalled();
   });
   
   test("should skip non-Elixir files", async () => {
-    // Setup mock PR files with a non-Elixir file
     mockOctokit.rest.pulls.listFiles.mockResolvedValue({
       data: [
         { 
@@ -559,13 +538,11 @@ describe("run", () => {
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify analyzeCodeForTests was not called
     const analyzeCodeForTests = rewiredModule.__get__("analyzeCodeForTests");
     expect(analyzeCodeForTests).not.toHaveBeenCalled();
   });
   
   test("should skip files with no added lines", async () => {
-    // Setup mock PR files with no added lines
     mockOctokit.rest.pulls.listFiles.mockResolvedValue({
       data: [
         { 
@@ -576,19 +553,16 @@ describe("run", () => {
       ]
     });
     
-    // Mock extractAddedLines to return empty array
     rewiredModule.__get__("extractAddedLines").mockReturnValue([]);
     
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify analyzeCodeForTests was not called
     const analyzeCodeForTests = rewiredModule.__get__("analyzeCodeForTests");
     expect(analyzeCodeForTests).not.toHaveBeenCalled();
   });
   
   test("should post test suggestions when tests are found", async () => {
-    // Setup mock PR files
     mockOctokit.rest.pulls.listFiles.mockResolvedValue({
       data: [
         { 
@@ -599,7 +573,6 @@ describe("run", () => {
       ]
     });
     
-    // Mock analyzeCodeForTests to return tests
     rewiredModule.__get__("analyzeCodeForTests").mockResolvedValue({
       tests: [
         {
@@ -617,7 +590,6 @@ describe("run", () => {
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify postTestSuggestions was called
     const postTestSuggestions = rewiredModule.__get__("postTestSuggestions");
     expect(postTestSuggestions).toHaveBeenCalledWith(
       mockOctokit,
@@ -634,24 +606,20 @@ describe("run", () => {
   });
   
   test("should handle errors gracefully", async () => {
-    // Force an error by making listFiles throw
     mockOctokit.rest.pulls.listFiles.mockRejectedValue(new Error("Test error"));
     
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify setFailed was called
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Test error"));
   });
   
   test("should handle missing required inputs", async () => {
-    // Mock getInput to return empty values
     mockCore.getInput.mockImplementation(() => "");
     
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify setFailed was called with appropriate error message
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GitHub token is required"));
   });
 });

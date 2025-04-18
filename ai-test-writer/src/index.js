@@ -1,4 +1,3 @@
-// using lets here so rewire can work on these in the tests
 let core = require("@actions/core");
 let github = require("@actions/github");
 let { Anthropic } = require("@anthropic-ai/sdk");

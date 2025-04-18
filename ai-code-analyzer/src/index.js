@@ -1,10 +1,10 @@
-const core = require("@actions/core");
-const github = require("@actions/github");
-const { Anthropic } = require("@anthropic-ai/sdk");
-const fs = require("fs");
-const path = require("path");
-const glob = require("glob");
-const { marked } = require("marked");
+let core = require("@actions/core");
+let github = require("@actions/github");
+let { Anthropic } = require("@anthropic-ai/sdk");
+let fs = require("fs");
+let path = require("path");
+let glob = require("glob");
+let { marked } = require("marked");
 
 async function run() {
   try {
