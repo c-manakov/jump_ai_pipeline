@@ -6,7 +6,17 @@ const path = require("path");
 const glob = require("glob");
 const { marked } = require("marked");
 
-// let's export all of the functions here AI!
+// Export functions for testing and reuse
+module.exports = {
+  run,
+  loadRules,
+  extractAddedLines,
+  analyzeCode,
+  postComments,
+  loadIgnorePatterns,
+  shouldIgnoreFile,
+  findCodeInPatch
+};
 
 async function run() {
   try {
