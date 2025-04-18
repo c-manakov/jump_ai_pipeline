@@ -12,7 +12,6 @@ async function run() {
     console.log("Node version:", process.version);
     console.log("Current directory:", process.cwd());
 
-    // For GitHub Actions:
     const githubToken =
       core.getInput("github-token", { required: true }) ||
       process.env.GITHUB_TOKEN;
@@ -23,17 +22,6 @@ async function run() {
     const context = github.context;
     const { owner, repo } = context.repo;
     const pullNumber = context.payload.pull_request?.number;
-
-    // For local development:
-    // const githubToken = process.env.GITHUB_TOKEN;
-    // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    // const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
-    // const { Octokit } = require("@octokit/rest");
-    // const octokit = new Octokit({ auth: githubToken });
-    //
-    // const owner = process.env.GITHUB_OWNER;
-    // const repo = process.env.GITHUB_REPO;
-    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     if (!githubToken) {
       throw new Error(
@@ -74,7 +62,6 @@ async function run() {
       pull_number: pullNumber,
     });
 
-    // Load rules
     const rules = await loadRules(rulesPath);
     if (rules.length === 0) {
       console.log(`No rules found in ${rulesPath}`);
@@ -86,7 +73,6 @@ async function run() {
     // Load ignore patterns if .ai-analyzer-ignore exists
     const ignorePatterns = loadIgnorePatterns();
 
-    // Process each file in the PR
     for (const file of files) {
       // Skip files that match ignore patterns
       if (shouldIgnoreFile(file.filename, ignorePatterns)) {
@@ -96,7 +82,6 @@ async function run() {
 
       if (file.status === "removed") continue;
 
-      // Extract added lines
       const addedLines = extractAddedLines(file.patch);
       if (addedLines.length === 0) continue;
 
@@ -114,7 +99,6 @@ async function run() {
         `Analyzing ${file.filename} (${addedLines.length} added lines)`,
       );
 
-      // Analyze code with Claude
       const analysis = await analyzeCode(
         anthropic,
         addedLines.join("\n"),
@@ -122,7 +106,6 @@ async function run() {
         fullFileContent,
       );
 
-      // Post comments if issues found
       if (analysis.issues.length > 0) {
         await postComments(octokit, owner, repo, pullNumber, file, analysis);
       }
@@ -149,7 +132,6 @@ async function loadRules(rulesPath) {
         const content = fs.readFileSync(file, "utf8");
         const relativePath = path.relative(process.cwd(), file);
 
-        // Parse markdown to get title and description
         const tokens = marked.lexer(content);
         const title =
           tokens.find((t) => t.type === "heading" && t.depth === 1)?.text ||
@@ -189,7 +171,6 @@ function extractAddedLines(patch) {
 }
 
 async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
-  // Prepare rules text for the prompt
   const rulesText = rules
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
@@ -238,7 +219,6 @@ Format your response as JSON:
 If no issues are found, return {"issues": []}.
 `;
 
-  // Call Claude API
   const message = await anthropic.messages.create({
     model: "claude-3-7-sonnet-latest",
     max_tokens: 4000,
@@ -247,9 +227,7 @@ If no issues are found, return {"issues": []}.
     messages: [{ role: "user", content: prompt }],
   });
 
-  // Parse the response
   try {
-    // Extract JSON from the response
     const responseText = message.content[0].text;
     const jsonMatch =
       responseText.match(/```json\n([\s\S]*?)\n```/) ||
@@ -281,7 +259,6 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
   console.log(analysis.issues)
 
   for (const issue of analysis.issues) {
-    // Find the line numbers for the problematic code
     const { startLine, endLine, originalIndentation } = findCodeInPatch(
       file.patch,
       issue.code,
@@ -310,7 +287,6 @@ ${formattedSuggestion || ""}
     );
 
     try {
-      // Create a review comment
       if (startLine === endLine) {
         await octokit.rest.pulls.createReviewComment({
           owner,
@@ -377,7 +353,6 @@ function shouldIgnoreFile(filename, patterns) {
 
   for (const pattern of patterns) {
     // Convert glob pattern to regex
-    // This is a simplified version - for a full implementation, consider using a library like minimatch
     const regexPattern = pattern
       .replace(/\./g, "\\.") // Escape dots
       .replace(/\*/g, ".*") // Convert * to .*
@@ -386,7 +361,6 @@ function shouldIgnoreFile(filename, patterns) {
 
     const regex = new RegExp(`^${regexPattern}$`);
 
-    // Check if filename matches the pattern
     if (regex.test(filename)) {
       return true;
     }
@@ -447,7 +421,6 @@ function findCodeInPatch(patch, codeSnippet) {
         matchedLines = 1;
         inMatch = true;
 
-        // If the snippet is only one line, we're done
         if (normalizedSnippet.length === 1) {
           endLine = currentLine;
           break;
@@ -539,12 +512,6 @@ function findCodeInPatch(patch, codeSnippet) {
   return { startLine, endLine, originalIndentation };
 }
 
-/**
- * Formats a code suggestion to maintain the original indentation pattern
- * @param {string} suggestion - The code suggestion to format
- * @param {string} originalIndentation - The original indentation pattern
- * @returns {string} - The formatted suggestion with proper indentation
- */
 function formatSuggestionIndentation(suggestion, originalIndentation) {
   if (!originalIndentation || !suggestion) {
     return suggestion;
@@ -565,7 +532,6 @@ function formatSuggestionIndentation(suggestion, originalIndentation) {
     .join("\n");
 }
 
-// Export internal functions for testing
 if (process.env.NODE_ENV === "test") {
   module.exports = {
     __test: {
@@ -578,7 +544,6 @@ if (process.env.NODE_ENV === "test") {
   };
 }
 
-// Only run the action if not in test environment
 if (process.env.NODE_ENV !== "test") {
   run();
 }

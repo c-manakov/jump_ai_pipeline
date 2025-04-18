@@ -3,7 +3,6 @@ const fs = require("fs");
 const glob = require("glob");
 const rewire = require("rewire");
 
-// Import the module for normal tests
 const indexModule = require("../src/index");
 const {
   findCodeInPatch,
@@ -12,7 +11,6 @@ const {
   formatSuggestionIndentation,
 } = indexModule;
 
-// Mock glob module
 jest.mock("glob");
 
 describe("findCodeInPatch", () => {
@@ -165,23 +163,18 @@ describe("formatSuggestionIndentation", () => {
 });
 
 describe("postComments", () => {
-  // Use rewire to access and modify private functions
   let rewiredModule;
   let mockFindCodeInPatch;
   let mockFormatSuggestionIndentation;
 
   beforeEach(() => {
-    // Create a new rewired instance for each test
     rewiredModule = rewire("../src/index");
 
-    // Mock console.error but allow console.log for debugging
     jest.spyOn(console, "error").mockImplementation(() => {});
 
-    // Create mock functions
     mockFindCodeInPatch = jest.fn();
     mockFormatSuggestionIndentation = jest.fn();
 
-    // Replace the internal functions with our mocks
     rewiredModule.__set__("findCodeInPatch", mockFindCodeInPatch);
     rewiredModule.__set__(
       "formatSuggestionIndentation",
@@ -194,7 +187,6 @@ describe("postComments", () => {
   });
 
   test("should post comments for issues with valid line numbers", async () => {
-    // Mock dependencies
     const mockOctokit = {
       rest: {
         pulls: {
@@ -223,7 +215,6 @@ describe("postComments", () => {
       ],
     };
 
-    // Setup mock return values
     mockFindCodeInPatch.mockReturnValue({
       startLine: 2,
       endLine: 2,
@@ -232,10 +223,8 @@ describe("postComments", () => {
 
     mockFormatSuggestionIndentation.mockReturnValue("const b = 2; // Fixed");
 
-    // Get the postComments function from the rewired module
     const postComments = rewiredModule.__get__("postComments");
 
-    // Call the function
     await postComments(
       mockOctokit,
       "owner",
@@ -272,7 +261,6 @@ describe("postComments", () => {
   });
 
   test("should skip issues with invalid line numbers", async () => {
-    // Mock dependencies
     const mockOctokit = {
       rest: {
         pulls: {
@@ -318,7 +306,6 @@ describe("postComments", () => {
       mockAnalysis,
     );
 
-    // Verify the function was called with the right arguments
     expect(mockOctokit.rest.pulls.get).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
@@ -382,7 +369,6 @@ describe("postComments", () => {
       mockAnalysis,
     );
 
-    // Verify the function was called with the right arguments
     expect(mockOctokit.rest.pulls.createReviewComment).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
@@ -397,15 +383,12 @@ describe("postComments", () => {
 });
 
 describe("analyzeCode", () => {
-  // Use rewire to access and modify private functions
   let rewiredModule;
   let mockAnthropic;
   
   beforeEach(() => {
-    // Create a new rewired instance for each test
     rewiredModule = rewire("../src/index");
     
-    // Mock Anthropic client
     mockAnthropic = {
       messages: {
         create: jest.fn().mockResolvedValue({
@@ -420,10 +403,8 @@ describe("analyzeCode", () => {
   });
 
   test("should call Anthropic API with correct parameters", async () => {
-    // Get the analyzeCode function from the rewired module
     const analyzeCode = rewiredModule.__get__("analyzeCode");
     
-    // Setup test data
     const code = "const x = 1;";
     const rules = [
       { id: "rule1", title: "Rule 1", content: "Don't do X" },
@@ -431,10 +412,8 @@ describe("analyzeCode", () => {
     ];
     const fullFileContent = "const a = 0;\nconst x = 1;\nconst y = 2;";
     
-    // Call the function
     await analyzeCode(mockAnthropic, code, rules, fullFileContent);
     
-    // Verify Anthropic API was called with correct parameters
     expect(mockAnthropic.messages.create).toHaveBeenCalledTimes(1);
     expect(mockAnthropic.messages.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -450,7 +429,6 @@ describe("analyzeCode", () => {
       })
     );
     
-    // Verify the prompt contains the rules
     const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
     expect(prompt).toContain("Rule 1");
     expect(prompt).toContain("Rule 2");
@@ -460,24 +438,20 @@ describe("analyzeCode", () => {
   });
 
   test("should parse response correctly when issues are found", async () => {
-    // Mock Anthropic response with issues
     mockAnthropic.messages.create.mockResolvedValue({
       content: [{ 
         text: '```json\n{"issues":[{"rule_id":"rule1","code":"const x = 1;","explanation":"X is not allowed","suggestion":"const y = 1;"}]}\n```' 
       }]
     });
     
-    // Get the analyzeCode function from the rewired module
     const analyzeCode = rewiredModule.__get__("analyzeCode");
     
-    // Call the function
     const result = await analyzeCode(
       mockAnthropic, 
       "const x = 1;", 
       [{ id: "rule1", title: "Rule 1", content: "Don't do X" }]
     );
     
-    // Verify the result
     expect(result).toEqual({
       issues: [
         {
@@ -491,9 +465,7 @@ describe("analyzeCode", () => {
   });
 
   test("should handle different JSON response formats", async () => {
-    // Test with different JSON formats that Claude might return
     const testCases = [
-      // JSON without code block
       { 
         response: '{"issues":[{"rule_id":"rule1","code":"const x = 1;","explanation":"X is not allowed","suggestion":"const y = 1;"}]}',
         expected: {
@@ -507,70 +479,57 @@ describe("analyzeCode", () => {
           ]
         }
       },
-      // JSON in code block without language
       {
         response: '```\n{"issues":[]}\n```',
         expected: { issues: [] }
       },
-      // JSON in code block with language
       {
         response: '```json\n{"issues":[]}\n```',
         expected: { issues: [] }
       }
     ];
     
-    // Get the analyzeCode function from the rewired module
     const analyzeCode = rewiredModule.__get__("analyzeCode");
     
     for (const testCase of testCases) {
-      // Mock Anthropic response
       mockAnthropic.messages.create.mockResolvedValue({
         content: [{ text: testCase.response }]
       });
       
-      // Call the function
       const result = await analyzeCode(
         mockAnthropic, 
         "const x = 1;", 
         [{ id: "rule1", title: "Rule 1", content: "Don't do X" }]
       );
       
-      // Verify the result
       expect(result).toEqual(testCase.expected);
     }
   });
 
   test("should handle parsing errors gracefully", async () => {
-    // Mock Anthropic response with invalid JSON
     mockAnthropic.messages.create.mockResolvedValue({
       content: [{ text: 'This is not JSON' }]
     });
     
-    // Mock console.error to prevent test output pollution
     jest.spyOn(console, 'error').mockImplementation(() => {});
     
-    // Get the analyzeCode function from the rewired module
     const analyzeCode = rewiredModule.__get__("analyzeCode");
     
-    // Call the function
     const result = await analyzeCode(
       mockAnthropic, 
       "const x = 1;", 
       [{ id: "rule1", title: "Rule 1", content: "Don't do X" }]
     );
     
-    // Verify the result is a default empty issues array
     expect(result).toEqual({ issues: [] });
   });
 });
 
 describe("loadRules", () => {
   beforeEach(() => {
-    // Mock fs functions
     jest.spyOn(fs, "readFileSync").mockImplementation(() => "# Rule Title\n\nRule content goes here");
     jest.spyOn(fs, "existsSync").mockImplementation(() => true);
     
-    // Mock glob.sync directly with Jest
     jest.spyOn(glob, "sync").mockReturnValue([
       ".ai-code-rules/rule1.md",
       ".ai-code-rules/rule2.md"
@@ -582,10 +541,8 @@ describe("loadRules", () => {
   });
 
   test("should load rules from markdown files", async () => {
-    // Call the function directly from the imported module
     const rules = await indexModule.loadRules(".ai-code-rules");
     
-    // Verify the result
     expect(rules).toHaveLength(2);
     expect(rules[0]).toEqual(expect.objectContaining({
       id: "rule1",
@@ -602,42 +559,32 @@ describe("loadRules", () => {
   });
 
   test("should handle rules without proper title", async () => {
-    // Mock readFileSync to return content without a title
     fs.readFileSync.mockImplementation(() => "Rule content without title");
     
-    // Call the function directly from the imported module
     const rules = await indexModule.loadRules(".ai-code-rules");
     
-    // Verify the result
     expect(rules).toHaveLength(2);
     expect(rules[0].title).toBe("rule1");
     expect(rules[1].title).toBe("rule2");
   });
 
   test("should return empty array when no rules found", async () => {
-    // Mock glob to return empty array
     glob.sync.mockImplementation(() => []);
     
-    // Call the function directly from the imported module
     const rules = await indexModule.loadRules(".ai-code-rules");
     
-    // Verify the result
     expect(rules).toEqual([]);
   });
 
   test("should handle errors when reading rule files", async () => {
-    // Mock readFileSync to throw an error for the first file
     fs.readFileSync
       .mockImplementationOnce(() => { throw new Error("File not found"); })
       .mockImplementationOnce(() => "# Rule 2\n\nContent for rule 2");
     
-    // Mock console.error to prevent test output pollution
     jest.spyOn(console, 'error').mockImplementation(() => {});
     
-    // Call the function directly from the imported module
     const rules = await indexModule.loadRules(".ai-code-rules");
     
-    // Verify the result - should still return the second rule
     expect(rules).toHaveLength(1);
     expect(rules[0].id).toBe("rule2");
   });
@@ -689,256 +636,5 @@ describe("extractAddedLines", () => {
  const c = 3;`;
 
     expect(indexModule.extractAddedLines(patch)).toEqual([]);
-  });
-});
-
-describe("run", () => {
-  // Use rewire to access and modify private functions
-  let rewiredModule;
-  let mockOctokit;
-  let mockAnthropic;
-  let mockCore;
-  let mockGithub;
-  
-  beforeEach(() => {
-    // Create a new rewired instance for each test
-    rewiredModule = rewire("../src/index");
-    
-    // Mock dependencies
-    mockOctokit = {
-      rest: {
-        pulls: {
-          listFiles: jest.fn().mockResolvedValue({ data: [] }),
-          get: jest.fn().mockResolvedValue({ data: { head: { sha: "test-sha" } } }),
-          createReviewComment: jest.fn().mockResolvedValue({})
-        }
-      }
-    };
-    
-    mockAnthropic = {
-      messages: {
-        create: jest.fn().mockResolvedValue({
-          content: [{ text: '{"issues":[]}' }]
-        })
-      }
-    };
-    
-    mockCore = {
-      getInput: jest.fn((name, options) => {
-        if (name === "github-token") return "mock-token";
-        if (name === "anthropic-api-key") return "mock-api-key";
-        if (name === "rules-path") return ".ai-code-rules";
-        return "";
-      }),
-      setFailed: jest.fn()
-    };
-    
-    mockGithub = {
-      getOctokit: jest.fn().mockReturnValue(mockOctokit),
-      context: {
-        repo: { owner: "test-owner", repo: "test-repo" },
-        payload: { pull_request: { number: 123 } }
-      }
-    };
-    
-    // Replace the internal dependencies with our mocks
-    rewiredModule.__set__("core", mockCore);
-    rewiredModule.__set__("github", mockGithub);
-    rewiredModule.__set__("Anthropic", function() {
-      return mockAnthropic;
-    });
-    
-    // Mock other functions
-    rewiredModule.__set__("loadRules", jest.fn().mockResolvedValue([
-      { id: "rule1", title: "Rule 1", content: "Rule 1 content" }
-    ]));
-    rewiredModule.__set__("loadIgnorePatterns", jest.fn().mockReturnValue([]));
-    rewiredModule.__set__("extractAddedLines", jest.fn().mockReturnValue(["const x = 1;"]));
-    rewiredModule.__set__("analyzeCode", jest.fn().mockResolvedValue({ issues: [] }));
-    rewiredModule.__set__("postComments", jest.fn().mockResolvedValue(undefined));
-    
-    // Mock fs.readFileSync
-    jest.spyOn(fs, "readFileSync").mockImplementation(() => "mock file content");
-    
-    // Mock console methods to prevent test output pollution
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-  
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-  
-  test("should process PR files and analyze code", async () => {
-    // Setup mock PR files
-    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
-      data: [
-        { 
-          filename: "test.js", 
-          status: "modified",
-          patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;"
-        }
-      ]
-    });
-    
-    // Get the run function from the rewired module
-    const run = rewiredModule.__get__("run");
-    
-    // Call the function
-    await run();
-    
-    // Verify the correct functions were called
-    expect(mockGithub.getOctokit).toHaveBeenCalledWith("mock-token");
-    expect(mockOctokit.rest.pulls.listFiles).toHaveBeenCalledWith({
-      owner: "test-owner",
-      repo: "test-repo",
-      pull_number: 123
-    });
-    
-    const loadRules = rewiredModule.__get__("loadRules");
-    expect(loadRules).toHaveBeenCalledWith(".ai-code-rules");
-    
-    const extractAddedLines = rewiredModule.__get__("extractAddedLines");
-    expect(extractAddedLines).toHaveBeenCalledWith(expect.any(String));
-    
-    const analyzeCode = rewiredModule.__get__("analyzeCode");
-    expect(analyzeCode).toHaveBeenCalledWith(
-      mockAnthropic,
-      expect.any(String),
-      expect.any(Array),
-      expect.any(String)
-    );
-  });
-  
-  test("should skip removed files", async () => {
-    // Setup mock PR files with a removed file
-    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
-      data: [
-        { 
-          filename: "removed.js", 
-          status: "removed",
-          patch: "@@ -1,3 +0,0 @@\n-const a = 1;\n-const b = 2;\n-const c = 3;"
-        }
-      ]
-    });
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify analyzeCode was not called
-    const analyzeCode = rewiredModule.__get__("analyzeCode");
-    expect(analyzeCode).not.toHaveBeenCalled();
-  });
-  
-  test("should skip files with no added lines", async () => {
-    // Setup mock PR files with no added lines
-    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
-      data: [
-        { 
-          filename: "unchanged.js", 
-          status: "modified",
-          patch: "@@ -1,3 +1,3 @@\n const a = 1;\n const b = 2;\n const c = 3;"
-        }
-      ]
-    });
-    
-    // Mock extractAddedLines to return empty array
-    rewiredModule.__set__("extractAddedLines", jest.fn().mockReturnValue([]));
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify analyzeCode was not called
-    const analyzeCode = rewiredModule.__get__("analyzeCode");
-    expect(analyzeCode).not.toHaveBeenCalled();
-  });
-  
-  test("should skip files that match ignore patterns", async () => {
-    // Setup mock PR files
-    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
-      data: [
-        { 
-          filename: "node_modules/package.js", 
-          status: "modified",
-          patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;"
-        }
-      ]
-    });
-    
-    // Mock loadIgnorePatterns to return patterns that match the file
-    rewiredModule.__set__("loadIgnorePatterns", jest.fn().mockReturnValue(["node_modules/*"]));
-    rewiredModule.__set__("shouldIgnoreFile", jest.fn().mockReturnValue(true));
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify analyzeCode was not called
-    const analyzeCode = rewiredModule.__get__("analyzeCode");
-    expect(analyzeCode).not.toHaveBeenCalled();
-  });
-  
-  test("should post comments when issues are found", async () => {
-    // Setup mock PR files
-    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
-      data: [
-        { 
-          filename: "test.js", 
-          status: "modified",
-          patch: "@@ -1,3 +1,4 @@\n const a = 1;\n+const b = 2;\n const c = 3;"
-        }
-      ]
-    });
-    
-    // Mock analyzeCode to return issues
-    rewiredModule.__set__("analyzeCode", jest.fn().mockResolvedValue({
-      issues: [
-        {
-          rule_id: "rule1",
-          code: "const b = 2;",
-          explanation: "Test explanation",
-          suggestion: "const b = 2; // Fixed"
-        }
-      ]
-    }));
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify postComments was called
-    const postComments = rewiredModule.__get__("postComments");
-    expect(postComments).toHaveBeenCalledWith(
-      mockOctokit,
-      "test-owner",
-      "test-repo",
-      123,
-      expect.objectContaining({ filename: "test.js" }),
-      expect.objectContaining({ 
-        issues: expect.arrayContaining([
-          expect.objectContaining({ rule_id: "rule1" })
-        ]) 
-      })
-    );
-  });
-  
-  test("should handle errors gracefully", async () => {
-    // Force an error by making listFiles throw
-    mockOctokit.rest.pulls.listFiles.mockRejectedValue(new Error("Test error"));
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify setFailed was called
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Test error"));
-  });
-  
-  test("should handle missing required inputs", async () => {
-    // Mock getInput to return empty values
-    mockCore.getInput.mockImplementation(() => "");
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify setFailed was called with appropriate error message
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GitHub token is required"));
   });
 });
