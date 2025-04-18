@@ -1,6 +1,7 @@
 const path = require("path");
+const fs = require("fs");
 
-const { findCodeInPatch, shouldIgnoreFile } = require("../src/index");
+const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns } = require("../src/index");
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
@@ -76,4 +77,38 @@ describe("shouldIgnoreFile", () => {
   });
 });
 
-// ok, now let's test loadIgnorePatterns, we will need to mock fs functions for that AI!
+describe("loadIgnorePatterns", () => {
+  beforeEach(() => {
+    // Mock fs functions
+    jest.spyOn(fs, 'existsSync').mockImplementation(() => false);
+    jest.spyOn(fs, 'readFileSync').mockImplementation(() => '');
+  });
+
+  afterEach(() => {
+    // Restore original implementations
+    jest.restoreAllMocks();
+  });
+
+  test("should return empty array when ignore file does not exist", () => {
+    fs.existsSync.mockReturnValue(false);
+    
+    const result = loadIgnorePatterns();
+    expect(result).toEqual([]);
+  });
+
+  test("should load patterns from ignore file", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue("*.js\n# Comment\n\ntest/*");
+    
+    const result = loadIgnorePatterns();
+    expect(result).toEqual(["*.js", "test/*"]);
+  });
+
+  test("should handle empty lines and comments", () => {
+    fs.existsSync.mockReturnValue(true);
+    fs.readFileSync.mockReturnValue("*.js\n# This is a comment\n\n  test/*  \n#Another comment");
+    
+    const result = loadIgnorePatterns();
+    expect(result).toEqual(["*.js", "test/*"]);
+  });
+});
