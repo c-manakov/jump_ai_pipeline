@@ -163,7 +163,7 @@ async function run() {
       );
 
       // Post comments if test suggestions found
-      if (analysis.suggestions.length > 0) {
+      if (analysis.tests && analysis.tests.length > 0) {
         await postTestSuggestions(
           octokit,
           owner,
@@ -343,29 +343,6 @@ ${!testFileExists ? "If a new test file needs to be created, include complete fi
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const analysis = JSON.parse(jsonText);
-    
-    // If the response uses the new format with a complete_test_file at the top level,
-    // convert it to the old format for backward compatibility
-    if (analysis.complete_test_file && analysis.tests) {
-      // Find the lowest confidence score among all tests
-      const lowestConfidence = analysis.lowest_confidence || 
-        Math.min(...analysis.tests.map(test => test.confidence || 0));
-      
-      // Convert to the old format
-      return {
-        create_new_file: analysis.create_new_file,
-        test_file_path: analysis.test_file_path,
-        suggestions: [
-          {
-            target: "Multiple functions",
-            explanation: "Combined test file for multiple functions",
-            confidence: lowestConfidence,
-            complete_test_file: analysis.complete_test_file
-          }
-        ]
-      };
-    }
-
     return analysis;
   } catch (error) {
     console.error("Failed to parse Claude response:", error);
@@ -391,27 +368,34 @@ async function postTestSuggestions(
   const latestCommitId = pullRequest.head.sha;
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
-  for (const suggestion of analysis.suggestions) {
-    console.log(suggestion);
-    // Determine action based on confidence level
-    const confidenceLevel = suggestion.confidence || 0;
-    const actionType =
-      confidenceLevel >= 4
-        ? "Automatic Implementation"
-        : confidenceLevel === 3
-          ? "Suggested Implementation"
-          : "Manual Implementation Required";
+  // Determine action based on confidence level
+  const confidenceLevel = analysis.lowest_confidence || 0;
+  const actionType =
+    confidenceLevel >= 4
+      ? "Automatic Implementation"
+      : confidenceLevel === 3
+        ? "Suggested Implementation"
+        : "Manual Implementation Required";
 
-    const body = `## AI Test Suggestion${suggestion.target !== "Multiple functions" ? ` for: ${suggestion.target}` : ""}
+  // Create a summary of the tests
+  const testSummary = analysis.tests
+    ? analysis.tests
+        .map(
+          test => `- **${test.target}** (Confidence: ${test.confidence}/5): ${test.explanation.split('.')[0]}.`
+        )
+        .join('\n')
+    : '';
 
-${suggestion.explanation}
+  const body = `## AI Test Suggestions
 
-### Confidence Level: ${confidenceLevel}/5
+${testSummary}
+
+### Overall Confidence Level: ${confidenceLevel}/5
 ${actionType}
 
 ### Complete Test File:
 \`\`\`elixir
-${suggestion.complete_test_file}
+${analysis.complete_test_file}
 \`\`\`
 
 ${
@@ -424,34 +408,33 @@ ${
 `
 }`;
 
-    try {
-      // Create a review comment at the end of the file
-      await octokit.rest.pulls.createReviewComment({
-        owner,
-        repo,
-        pull_number: pullNumber,
-        body,
-        commit_id: latestCommitId,
-        path: file.filename,
-        line: getLastLineNumber(file.patch),
-      });
+  try {
+    // Create a review comment at the end of the file
+    await octokit.rest.pulls.createReviewComment({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      body,
+      commit_id: latestCommitId,
+      path: file.filename,
+      line: getLastLineNumber(file.patch),
+    });
 
+    console.log(
+      `Posted test suggestions for ${file.filename} (overall confidence: ${confidenceLevel}/5)`,
+    );
+
+    // If confidence is high (4-5), we could automatically implement the test
+    // This would be implemented in a separate function
+    if (confidenceLevel >= 4) {
       console.log(
-        `Posted test suggestion for ${suggestion.target} in ${file.filename} (confidence: ${confidenceLevel}/5)`,
+        `High confidence tests - eligible for automatic implementation`,
       );
-
-      // If confidence is high (4-5), we could automatically implement the test
-      // This would be implemented in a separate function
-      if (confidenceLevel >= 4) {
-        console.log(
-          `High confidence test for ${suggestion.target} - eligible for automatic implementation`,
-        );
-        // Future implementation: await implementTest(suggestion, analysis.test_file_path);
-      }
-    } catch (error) {
-      console.error(`Error posting test suggestion: ${error.message}`);
-      console.error(error);
+      // Future implementation: await implementTest(analysis);
     }
+  } catch (error) {
+    console.error(`Error posting test suggestion: ${error.message}`);
+    console.error(error);
   }
 }
 
