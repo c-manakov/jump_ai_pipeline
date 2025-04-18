@@ -517,7 +517,6 @@ function findCodeInPatch(patch, codeSnippet) {
   }
 
   // Extract indentation from the original code snippet
-  // this doesn't seem to work, return null every time AI!
   let originalIndentation = null;
   if (startLine !== null && originalLines.length > 0) {
     // Get indentation from the first non-empty line
@@ -526,7 +525,24 @@ function findCodeInPatch(patch, codeSnippet) {
         const match = line.match(/^(\s+)/);
         if (match) {
           originalIndentation = match[1];
+          console.log(`Found indentation: '${originalIndentation}'`);
           break;
+        }
+      }
+    }
+    
+    // Fallback: if we couldn't extract indentation from the snippet,
+    // try to extract it from the patch at the matching position
+    if (!originalIndentation) {
+      const patchLines = patch.split('\n');
+      for (const line of patchLines) {
+        if (line.startsWith('+') && line.includes(originalLines[0].trim())) {
+          const match = line.substring(1).match(/^(\s+)/);
+          if (match) {
+            originalIndentation = match[1];
+            console.log(`Found indentation from patch: '${originalIndentation}'`);
+            break;
+          }
         }
       }
     }
