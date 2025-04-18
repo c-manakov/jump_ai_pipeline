@@ -216,8 +216,8 @@ Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
-4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before
-5. Be vary careful to make sure that suggestion maintains the same formatting as before
+4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before. If the suggestion is to remove the code, provide none.
+5. Be vary careful to make sure that suggestion maintains the same formatting and leave the original indentation in
 
 Format your response as JSON:
 {
@@ -233,6 +233,7 @@ Format your response as JSON:
 
 If no issues are found, return {"issues": []}.
 `;
+  console.log(prompt);
 
   // Call Claude API
   const message = await anthropic.messages.create({
