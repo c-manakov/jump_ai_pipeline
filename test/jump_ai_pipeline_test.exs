@@ -17,7 +17,8 @@ defmodule JumpAiPipelineTest do
     end
 
     test "returns error for non-existent file" do
-      assert {:error, :badfile} = JumpAiPipeline.open_decoded_file("non_existent_file.txt", nil, nil, nil)
+      assert {:error, :badfile} =
+               JumpAiPipeline.open_decoded_file("non_existent_file.txt", nil, nil, nil)
     end
 
     test "returns error for invalid base64 encoding" do
