@@ -161,14 +161,29 @@ describe("formatSuggestionIndentation", () => {
 });
 
 describe("postComments", () => {
+  // Mock the functions we need to test
+  const originalFindCodeInPatch = jest.fn();
+  const originalFormatSuggestionIndentation = jest.fn();
+  
   beforeEach(() => {
-    // Mock octokit
-    // jest.spyOn(console, 'log').mockImplementation(() => {});
+    // Mock console.error but allow console.log for debugging
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    // Mock the functions we need
+    jest.mock('../src/index', () => {
+      const originalModule = jest.requireActual('../src/index');
+      return {
+        ...originalModule,
+        findCodeInPatch: originalFindCodeInPatch,
+        formatSuggestionIndentation: originalFormatSuggestionIndentation
+      };
+    }, { virtual: true });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.resetAllMocks();
+    jest.clearAllMocks();
   });
 
   test("should post comments for issues with valid line numbers", async () => {
@@ -200,13 +215,14 @@ describe("postComments", () => {
       ]
     };
 
-    // Create a spy on the imported functions
-    const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
-      .mockReturnValue({ startLine: 2, endLine: 2, originalIndentation: null });
-
-    // Create a spy on formatSuggestionIndentation
-    const formatSuggestionIndentationSpy = jest.spyOn(require("../src/index"), 'formatSuggestionIndentation')
-      .mockReturnValue("const b = 2; // Fixed");
+    // Setup mock return values
+    originalFindCodeInPatch.mockReturnValue({ 
+      startLine: 2, 
+      endLine: 2, 
+      originalIndentation: null 
+    });
+    
+    originalFormatSuggestionIndentation.mockReturnValue("const b = 2; // Fixed");
 
     // Call the function
     await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
@@ -218,8 +234,8 @@ describe("postComments", () => {
       pull_number: 123
     });
 
-    expect(findCodeInPatchSpy).toHaveBeenCalledWith(mockFile.patch, "const b = 2;");
-    expect(formatSuggestionIndentationSpy).toHaveBeenCalledWith("const b = 2; // Fixed", null);
+    expect(originalFindCodeInPatch).toHaveBeenCalledWith(mockFile.patch, "const b = 2;");
+    expect(originalFormatSuggestionIndentation).toHaveBeenCalledWith("const b = 2; // Fixed", null);
 
     expect(mockOctokit.rest.pulls.createReviewComment).toHaveBeenCalledWith({
       owner: "owner",
@@ -261,9 +277,12 @@ describe("postComments", () => {
       ]
     };
 
-    // Create a spy on the imported functions
-    const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
-      .mockReturnValue({ startLine: null, endLine: null, originalIndentation: null });
+    // Setup mock return values
+    originalFindCodeInPatch.mockReturnValue({ 
+      startLine: null, 
+      endLine: null, 
+      originalIndentation: null 
+    });
 
     // Call the function
     await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
@@ -275,7 +294,7 @@ describe("postComments", () => {
       pull_number: 123
     });
 
-    expect(findCodeInPatchSpy).toHaveBeenCalledWith(mockFile.patch, "non-existent code");
+    expect(originalFindCodeInPatch).toHaveBeenCalledWith(mockFile.patch, "non-existent code");
     expect(mockOctokit.rest.pulls.createReviewComment).not.toHaveBeenCalled();
   });
 
@@ -308,13 +327,14 @@ describe("postComments", () => {
       ]
     };
 
-    // Create a spy on the imported functions
-    const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
-      .mockReturnValue({ startLine: 2, endLine: 3, originalIndentation: null });
-
-    // Create a spy on formatSuggestionIndentation
-    const formatSuggestionIndentationSpy = jest.spyOn(require("../src/index"), 'formatSuggestionIndentation')
-      .mockReturnValue("const b = 2;\nconst e = 5; // Fixed");
+    // Setup mock return values
+    originalFindCodeInPatch.mockReturnValue({ 
+      startLine: 2, 
+      endLine: 3, 
+      originalIndentation: null 
+    });
+    
+    originalFormatSuggestionIndentation.mockReturnValue("const b = 2;\nconst e = 5; // Fixed");
 
     // Call the function
     await postComments(mockOctokit, "owner", "repo", 123, mockFile, mockAnalysis);
