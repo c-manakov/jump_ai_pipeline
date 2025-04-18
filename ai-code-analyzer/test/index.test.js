@@ -642,3 +642,5 @@ describe("loadRules", () => {
     expect(rules[0].id).toBe("rule2");
   });
 });
+
+// that's perfect, thank you. Now let's add a test for extractAddedLines AI!
