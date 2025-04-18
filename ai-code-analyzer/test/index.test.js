@@ -1,3 +1,9 @@
+// Mock Node.js constants
+const originalConstants = { ...process.binding('constants').fs };
+process.binding = function(name) {
+  return name === 'constants' ? { fs: originalConstants } : {};
+};
+
 // Mock modules before requiring them
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
@@ -5,12 +11,56 @@ jest.mock('fs', () => ({
   readdirSync: jest.fn(),
   promises: {
     access: jest.fn()
+  },
+  constants: {
+    O_RDONLY: 0,
+    O_WRONLY: 1,
+    O_RDWR: 2,
+    O_CREAT: 64,
+    O_EXCL: 128,
+    O_TRUNC: 512,
+    O_APPEND: 1024,
+    O_DIRECTORY: 65536
   }
 }));
-jest.mock('@actions/core');
-jest.mock('@actions/github');
-jest.mock('@anthropic-ai/sdk');
-jest.mock('glob');
+
+// Mock other modules
+jest.mock('@actions/core', () => ({
+  getInput: jest.fn(),
+  setFailed: jest.fn(),
+  info: jest.fn(),
+  warning: jest.fn(),
+  error: jest.fn()
+}));
+
+jest.mock('@actions/github', () => ({
+  getOctokit: jest.fn(),
+  context: {
+    repo: {
+      owner: 'test-owner',
+      repo: 'test-repo'
+    },
+    payload: {
+      pull_request: {
+        number: 123
+      }
+    }
+  }
+}));
+
+jest.mock('@anthropic-ai/sdk', () => ({
+  Anthropic: jest.fn().mockImplementation(() => ({
+    messages: {
+      create: jest.fn().mockResolvedValue({
+        content: [{ text: '{"issues":[]}' }]
+      })
+    }
+  }))
+}));
+
+jest.mock('glob', () => ({
+  sync: jest.fn().mockReturnValue([])
+}));
 
 // Now import the modules
 const fs = require('fs');
