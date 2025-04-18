@@ -99,3 +99,5 @@ describe("generateRepoMap", () => {
     expect(result).toEqual([]);
   });
 });
+
+// now let's add a test for getLastLineNumber  AI!
