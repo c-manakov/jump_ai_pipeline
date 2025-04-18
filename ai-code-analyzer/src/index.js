@@ -281,15 +281,12 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
       continue;
     }
 
+    // we can extract this into a separate function AI!
     // Apply the original indentation to the suggestion
     let formattedSuggestion = issue.suggestion;
     if (originalIndentation && issue.suggestion) {
       // Preserve the original indentation pattern for each line
       const lines = issue.suggestion.split("\n");
-
-      // Check if the first line already has indentation
-      const firstLineIndent = lines[0].match(/^(\s+)/);
-      const baseIndent = firstLineIndent ? firstLineIndent[1] : "";
 
       formattedSuggestion = lines
         .map((line, index) => {
