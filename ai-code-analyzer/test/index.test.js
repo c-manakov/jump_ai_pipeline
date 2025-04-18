@@ -572,14 +572,18 @@ describe("loadRules", () => {
     // Create a new rewired instance for each test
     rewiredModule = rewire("../src/index");
     
-    // Mock fs and glob functions
+    // Mock fs functions
     jest.spyOn(fs, "readFileSync").mockImplementation(() => "# Rule Title\n\nRule content goes here");
     jest.spyOn(fs, "existsSync").mockImplementation(() => true);
-    // so this mocking doesn't seem to work in the rewired module, what might be the problem   AI?
-    jest.spyOn(glob, "sync").mockImplementation(() => [
-      ".ai-code-rules/rule1.md",
-      ".ai-code-rules/rule2.md"
-    ]);
+    
+    // Mock glob using rewire - this properly replaces the glob module in the rewired module
+    const mockGlob = {
+      sync: jest.fn().mockReturnValue([
+        ".ai-code-rules/rule1.md",
+        ".ai-code-rules/rule2.md"
+      ])
+    };
+    rewiredModule.__set__("glob", mockGlob);
   });
 
   afterEach(() => {
