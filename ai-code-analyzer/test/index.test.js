@@ -165,21 +165,24 @@ describe("postComments", () => {
   let rewiredModule;
   let mockFindCodeInPatch;
   let mockFormatSuggestionIndentation;
-  
+
   beforeEach(() => {
     // Create a new rewired instance for each test
     rewiredModule = rewire("../src/index");
-    
+
     // Mock console.error but allow console.log for debugging
     jest.spyOn(console, "error").mockImplementation(() => {});
-    
+
     // Create mock functions
     mockFindCodeInPatch = jest.fn();
     mockFormatSuggestionIndentation = jest.fn();
-    
+
     // Replace the internal functions with our mocks
     rewiredModule.__set__("findCodeInPatch", mockFindCodeInPatch);
-    rewiredModule.__set__("formatSuggestionIndentation", mockFormatSuggestionIndentation);
+    rewiredModule.__set__(
+      "formatSuggestionIndentation",
+      mockFormatSuggestionIndentation,
+    );
   });
 
   afterEach(() => {
@@ -223,19 +226,11 @@ describe("postComments", () => {
       originalIndentation: null,
     });
 
-    mockFormatSuggestionIndentation.mockReturnValue(
-      "const b = 2; // Fixed",
-    );
+    mockFormatSuggestionIndentation.mockReturnValue("const b = 2; // Fixed");
 
     // Get the postComments function from the rewired module
     const postComments = rewiredModule.__get__("postComments");
-    
-    // Get the postComments function from the rewired module
-    const postComments = rewiredModule.__get__("postComments");
-    
-    // Get the postComments function from the rewired module
-    const postComments = rewiredModule.__get__("postComments");
-    
+
     // Call the function
     await postComments(
       mockOctokit,
@@ -246,7 +241,6 @@ describe("postComments", () => {
       mockAnalysis,
     );
 
-    // Verify the function was called with the right arguments
     expect(mockOctokit.rest.pulls.get).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
@@ -303,14 +297,14 @@ describe("postComments", () => {
       ],
     };
 
-    // Setup mock return values
     mockFindCodeInPatch.mockReturnValue({
       startLine: null,
       endLine: null,
       originalIndentation: null,
     });
 
-    // Call the function
+    const postComments = rewiredModule.__get__("postComments");
+    
     await postComments(
       mockOctokit,
       "owner",
@@ -335,7 +329,6 @@ describe("postComments", () => {
   });
 
   test("should handle multi-line comments", async () => {
-    // Mock dependencies
     const mockOctokit = {
       rest: {
         pulls: {
@@ -364,7 +357,6 @@ describe("postComments", () => {
       ],
     };
 
-    // Setup mock return values
     mockFindCodeInPatch.mockReturnValue({
       startLine: 2,
       endLine: 3,
@@ -374,8 +366,9 @@ describe("postComments", () => {
     mockFormatSuggestionIndentation.mockReturnValue(
       "const b = 2;\nconst e = 5; // Fixed",
     );
+    
+    const postComments = rewiredModule.__get__("postComments");
 
-    // Call the function
     await postComments(
       mockOctokit,
       "owner",
@@ -398,3 +391,5 @@ describe("postComments", () => {
     });
   });
 });
+
+// this works perfectly, thank you. Now let's test analyzeCode using the same approach AI!
