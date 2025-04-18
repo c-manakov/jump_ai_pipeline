@@ -217,7 +217,6 @@ Analyze the code and identify any violations of the rules. For each violation:
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
 4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before. If the suggestion is to remove the code, provide none.
-5. IMPORTANT: When providing suggestions, preserve the exact indentation style of the original code. If the original code uses 2 spaces for indentation, use 2 spaces. If it uses 4 spaces, use 4 spaces. If it uses tabs, use tabs.
 
 Format your response as JSON:
 {
@@ -301,6 +300,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
           // Don't add indentation to empty lines
           if (line.trim() === "") return "";
 
+          // actually we need to apply indentation for first line too AI!
           // For first line, keep as is
           if (index === 0) return line;
 
