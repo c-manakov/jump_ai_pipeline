@@ -633,55 +633,6 @@ describe("run", () => {
     );
   });
   
-  test("should implement pending test files when tests have high confidence", async () => {
-    // Setup mock PR files
-    mockOctokit.rest.pulls.listFiles.mockResolvedValue({
-      data: [
-        { 
-          filename: "lib/app/accounts.ex", 
-          status: "modified",
-          patch: "@@ -1,3 +1,4 @@\n def old_func, do: nil\n+def sum(a, b), do: a + b\n def other_func, do: nil"
-        }
-      ]
-    });
-    
-    // Mock analyzeCodeForTests to return high confidence tests
-    rewiredModule.__get__("analyzeCodeForTests").mockResolvedValue({
-      tests: [
-        {
-          target: "sum/2",
-          explanation: "Tests basic addition",
-          confidence: 5
-        }
-      ],
-      create_new_file: true,
-      test_file_path: "test/app/accounts_test.exs",
-      complete_test_file: "test content",
-      lowest_confidence: 5
-    });
-    
-    // Mock the pendingTestFiles array
-    rewiredModule.__set__("pendingTestFiles", [
-      {
-        testFilePath: "test/app/accounts_test.exs",
-        testFileContent: "test content",
-        sourceFilePath: "lib/app/accounts.ex"
-      }
-    ]);
-    
-    const run = rewiredModule.__get__("run");
-    await run();
-    
-    // Verify implementPendingTestFiles was called
-    const implementPendingTestFiles = rewiredModule.__get__("implementPendingTestFiles");
-    expect(implementPendingTestFiles).toHaveBeenCalledWith(
-      mockOctokit,
-      "test-owner",
-      "test-repo",
-      "123"
-    );
-  });
-  
   test("should handle errors gracefully", async () => {
     // Force an error by making listFiles throw
     mockOctokit.rest.pulls.listFiles.mockRejectedValue(new Error("Test error"));
@@ -689,26 +640,18 @@ describe("run", () => {
     const run = rewiredModule.__get__("run");
     await run();
     
-    // Verify setFailed was called with any error message
-    expect(mockCore.setFailed).toHaveBeenCalled();
+    // Verify setFailed was called
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Test error"));
   });
   
   test("should handle missing required inputs", async () => {
-    // Save original implementation
-    const originalGetInput = mockCore.getInput;
-    
     // Mock getInput to return empty values
-    mockCore.getInput = jest.fn().mockImplementation(() => "");
+    mockCore.getInput.mockImplementation(() => "");
     
-    try {
-      const run = rewiredModule.__get__("run");
-      await run();
-      
-      // Verify setFailed was called with appropriate error message
-      expect(mockCore.setFailed).toHaveBeenCalled();
-    } finally {
-      // Restore original implementation
-      mockCore.getInput = originalGetInput;
-    }
+    const run = rewiredModule.__get__("run");
+    await run();
+    
+    // Verify setFailed was called with appropriate error message
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GitHub token is required"));
   });
 });

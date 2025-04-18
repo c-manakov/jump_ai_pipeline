@@ -1,8 +1,9 @@
-const core = require("@actions/core");
-const github = require("@actions/github");
-const { Anthropic } = require("@anthropic-ai/sdk");
-const fs = require("fs");
-const path = require("path");
+// using lets here so rewire can work on these in the tests
+let core = require("@actions/core");
+let github = require("@actions/github");
+let { Anthropic } = require("@anthropic-ai/sdk");
+let fs = require("fs");
+let path = require("path");
 
 async function run() {
   try {
@@ -617,9 +618,6 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
   return sourceToTestMap;
 }
 
-/**
- * Collects test files to be implemented
- */
 const pendingTestFiles = [];
 
 /**
