@@ -270,6 +270,8 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
   const latestCommitId = pullRequest.head.sha;
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
+  console.log(analysis.issues)
+
   for (const issue of analysis.issues) {
     // Find the line numbers for the problematic code
     const { startLine, endLine, originalIndentation } = findCodeInPatch(
@@ -395,6 +397,7 @@ function shouldIgnoreFile(filename, patterns) {
 }
 
 function findCodeInPatch(patch, codeSnippet) {
+  console.log("here")
   if (!patch || !codeSnippet)
     return { startLine: null, endLine: null, originalIndentation: null };
 

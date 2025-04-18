@@ -151,7 +151,7 @@ describe("formatSuggestionIndentation", () => {
 describe("postComments", () => {
   beforeEach(() => {
     // Mock octokit
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    // jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -189,6 +189,7 @@ describe("postComments", () => {
     };
 
     // Create a spy on the imported functions
+    // this spy doesn't work is there another way AI!
     const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
       .mockReturnValue({ startLine: 2, endLine: 2, originalIndentation: null });
 
