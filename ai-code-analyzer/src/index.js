@@ -316,18 +316,6 @@ ${issue.explanation}`;
 ${file.filename}
 <<<<<<< SEARCH
 ${issue.search_replace.search}
-
-    console.log(
-      `Posting comment on ${file.filename}:${startLine}-${endLine} with commit ID ${latestCommitId}`,
-    );
-
-    try {
-      // Create a review comment
-      if (startLine === endLine) {
-        await octokit.rest.pulls.createReviewComment({
-          owner,
-          repo,
-          pull_number: pullNumber,
           body,
           commit_id: latestCommitId,
           path: file.filename,
