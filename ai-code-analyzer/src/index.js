@@ -179,7 +179,7 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // Create the prompt for Claude
+  // We need to change this prompt. I want to request the AI to provide the suggestions as SEARCH/REPLACE blocks and also I need to provide the full file for context AI!
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
 
