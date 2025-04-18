@@ -386,10 +386,12 @@ ${suggestion.explanation}
 ### Confidence Level: ${confidenceLevel}/5
 ${actionType}
 
-### Suggested Test:
 ${
-  suggestion.search_replace_block ||
-  `\`\`\`elixir
+  suggestion.search_replace_block 
+    ? `### Implementation:
+${suggestion.search_replace_block}`
+    : `### Suggested Test:
+\`\`\`elixir
 ${suggestion.test_code}
 \`\`\``
 }
@@ -564,7 +566,25 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
   //   'jump_ai_pipeline/lib/jump_ai_pipeline_web/telemetry.ex': null,
   //   'jump_ai_pipeline/lib/jump_ai_pipeline_web.ex': 'jump_ai_pipeline/test/jump_ai_pipeline_web_test.exs'
   // }
-  // the map gets generated like this, we don't really need the first part of the path, so after we find all elixir files, we need to map them to not include that AI!
+
+  // Clean up paths to remove project prefix if present
+  const cleanSourceFiles = sourceFiles.map(file => {
+    const parts = file.split('/');
+    // If path starts with a project name folder, remove it
+    if (parts.length > 1 && parts[0].includes('_')) {
+      return parts.slice(1).join('/');
+    }
+    return file;
+  });
+
+  const cleanTestFiles = testFiles.map(file => {
+    const parts = file.split('/');
+    // If path starts with a project name folder, remove it
+    if (parts.length > 1 && parts[0].includes('_')) {
+      return parts.slice(1).join('/');
+    }
+    return file;
+  });
 
   console.log(
     `Found ${sourceFiles.length} source files and ${testFiles.length} test files`,
@@ -585,10 +605,10 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
 You are a code organization expert. I need you to map source files to their corresponding test files in an Elixir project.
 
 # Source files:
-${sourceFiles.join("\n")}
+${cleanSourceFiles.join("\n")}
 
 # Test files:
-${testFiles.join("\n")}
+${cleanTestFiles.join("\n")}
 
 For each source file, identify the most likely test file that would contain tests for it.
 Follow these Elixir conventions:
@@ -626,7 +646,25 @@ Example:
       responseText.match(/{[\s\S]*}/);
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
-    const sourceToTestMap = JSON.parse(jsonText);
+    const rawSourceToTestMap = JSON.parse(jsonText);
+    
+    // Convert the cleaned paths back to original paths for the final map
+    const sourceToTestMap = {};
+    sourceFiles.forEach(originalSourcePath => {
+      const cleanedPath = originalSourcePath.split('/').slice(1).join('/');
+      if (rawSourceToTestMap[cleanedPath]) {
+        // If there's a test file, convert its path back to the original format
+        const cleanTestPath = rawSourceToTestMap[cleanedPath];
+        if (cleanTestPath) {
+          const originalTestPath = testFiles.find(path => path.endsWith(cleanTestPath));
+          sourceToTestMap[originalSourcePath] = originalTestPath || cleanTestPath;
+        } else {
+          sourceToTestMap[originalSourcePath] = null;
+        }
+      } else {
+        sourceToTestMap[originalSourcePath] = null;
+      }
+    });
 
     console.log(sourceToTestMap);
 
@@ -645,10 +683,20 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
   const sourceToTestMap = {};
 
   for (const sourceFile of sourceFiles) {
+    // Handle paths with or without project prefix
+    const parts = sourceFile.split('/');
+    const projectPrefix = parts.length > 1 && parts[0].includes('_') ? parts[0] + '/' : '';
+    const relativePath = projectPrefix ? parts.slice(1).join('/') : sourceFile;
+    
     // Convert lib/app/module.ex to test/app/module_test.exs
-    let expectedTestFile = sourceFile
+    let expectedTestFile = relativePath
       .replace(/^lib\//, "test/")
       .replace(/\.ex$/, "_test.exs");
+    
+    // Add project prefix back if it existed
+    if (projectPrefix) {
+      expectedTestFile = projectPrefix + expectedTestFile;
+    }
 
     // Check if the expected test file exists
     if (testFiles.includes(expectedTestFile)) {
