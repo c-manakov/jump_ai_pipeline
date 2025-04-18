@@ -532,6 +532,8 @@ async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
     (file) => file.endsWith(".ex") || file.endsWith(".exs"),
   );
 
+  // so we need to move the mappping here to not duplicate it and without any conditions just remove the first part of the path, simple as that AI!
+
   // Separate test files from source files
   const testFiles = elixirFiles.filter(
     (file) =>
