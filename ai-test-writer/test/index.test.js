@@ -48,4 +48,49 @@ describe("createHeuristicSourceToTestMap", () => {
   });
 });
 
-// cool, now let's test generateRepoMap and mock fs.readdirSync AI!
+describe("generateRepoMap", () => {
+  beforeEach(() => {
+    jest.spyOn(fs, "readdirSync").mockImplementation((dir) => {
+      if (dir.endsWith("..")) {
+        return ["lib", "test", "node_modules", ".git"];
+      } else if (dir.includes("lib")) {
+        return ["app", "app_web"];
+      } else if (dir.includes("app")) {
+        return ["accounts.ex", "users.ex"];
+      } else if (dir.includes("test")) {
+        return ["app", "app_web"];
+      } else {
+        return [];
+      }
+    });
+    
+    jest.spyOn(fs, "statSync").mockImplementation((path) => ({
+      isDirectory: () => !path.endsWith(".ex"),
+      isFile: () => path.endsWith(".ex")
+    }));
+  });
+  
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+  
+  test("should recursively collect files from the repository", async () => {
+    const result = await indexModule.generateRepoMap();
+    
+    expect(result).toContain("lib/app/accounts.ex");
+    expect(result).toContain("lib/app/users.ex");
+    expect(result).not.toContain("node_modules");
+    expect(result).not.toContain(".git");
+  });
+  
+  test("should handle errors gracefully", async () => {
+    fs.readdirSync.mockImplementation(() => {
+      throw new Error("Permission denied");
+    });
+    
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    
+    const result = await indexModule.generateRepoMap();
+    expect(result).toEqual([]);
+  });
+});

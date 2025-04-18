@@ -271,7 +271,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
     // Apply the original indentation to the suggestion
     let formattedSuggestion = formatSuggestionIndentation(issue.suggestion, originalIndentation);
 
-    const body = `## AI Code Review: ${issue.rule_id}
+    const body = `## Code Review: ${issue.rule_id}
 
 ${issue.explanation}
 

@@ -371,7 +371,7 @@ async function postTestSuggestions(
         .join("\n")
     : "";
 
-  const body = `## AI Test Suggestions
+  const body = `## Test Suggestions
 
 ${testSummary}
 
@@ -715,7 +715,7 @@ async function implementPendingTestFiles(octokit, owner, repo, pullNumber) {
     const sourceFiles = pendingTestFiles
       .map((file) => file.sourceFilePath)
       .join(", ");
-    const commitMessage = `test: Add tests for ${sourceFiles} #ai-test`;
+    const commitMessage = `test: Add tests for ${sourceFiles}`;
 
     const { data: newCommit } = await octokit.rest.git.createCommit({
       owner,
