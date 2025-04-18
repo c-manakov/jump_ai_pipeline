@@ -283,7 +283,9 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
       continue;
     }
 
+    // when posting the suggestion let's make sure that the suggestion has the same indentation as the code. When we're finding the code in patch let's also get a snippet that's not normalized, get the amount of whitespaces from the first line of it and then add the same amount of whitespaces to all lines of the suggestion AI!
     const body = `## AI Code Review: ${issue.rule_id}
+  
 
 ${issue.explanation}
 
