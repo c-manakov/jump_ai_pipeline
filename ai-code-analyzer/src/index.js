@@ -23,7 +23,7 @@ async function run() {
     // For local development:
     // const githubToken = process.env.GITHUB_TOKEN;
     // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    // const rulesPath = process.env.RULES_PATH || '../.ai-code-rules';
+    // const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
 
     if (!githubToken) {
       throw new Error(
@@ -50,11 +50,11 @@ async function run() {
     const context = github.context;
     const { owner, repo } = context.repo;
     const pullNumber = context.payload.pull_request?.number;
-
+    //
     // For local development:
-    // const { Octokit } = require('@octokit/rest');
+    // const { Octokit } = require("@octokit/rest");
     // const octokit = new Octokit({ auth: githubToken });
-
+    //
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
     });
@@ -217,7 +217,6 @@ Analyze the code and identify any violations of the rules. For each violation:
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
 4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before. If the suggestion is to remove the code, provide none.
-5. IMPORTANT: When providing suggestions, preserve the exact indentation style of the original code. If the original code uses 2 spaces for indentation, use 2 spaces. If it uses 4 spaces, use 4 spaces. If it uses tabs, use tabs.
 
 Format your response as JSON:
 {
@@ -277,7 +276,10 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
   for (const issue of analysis.issues) {
     // Find the line numbers for the problematic code
-    const { startLine, endLine, originalIndentation } = findCodeInPatch(file.patch, issue.code);
+    const { startLine, endLine, originalIndentation } = findCodeInPatch(
+      file.patch,
+      issue.code,
+    );
     if (!startLine || !endLine) {
       console.log(`Could not find line numbers for issue in ${file.filename}`);
       continue;
@@ -287,28 +289,22 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
     let formattedSuggestion = issue.suggestion;
     if (originalIndentation && issue.suggestion) {
       // Preserve the original indentation pattern for each line
-      const lines = issue.suggestion.split('\n');
-      
+      const lines = issue.suggestion.split("\n");
+
       // Check if the first line already has indentation
       const firstLineIndent = lines[0].match(/^(\s+)/);
-      const baseIndent = firstLineIndent ? firstLineIndent[1] : '';
-      
+      const baseIndent = firstLineIndent ? firstLineIndent[1] : "";
+
       formattedSuggestion = lines
         .map((line, index) => {
           // Don't add indentation to empty lines
-          if (line.trim() === '') return '';
-          
-          // For first line, keep as is
-          if (index === 0) return line;
-          
-          // For subsequent lines, replace their existing indentation with the original
-          // First remove any existing indentation
-          const trimmedLine = line.replace(/^\s+/, '');
-          
-          // Then add the original indentation
+          if (line.trim() === "") return "";
+
+          // For all lines including the first one, apply proper indentation
+          const trimmedLine = line.replace(/^\s+/, "");
           return originalIndentation + trimmedLine;
         })
-        .join('\n');
+        .join("\n");
     }
 
     const body = `## AI Code Review: ${issue.rule_id}
@@ -317,7 +313,7 @@ ${issue.explanation}
 
 ### Suggestion:
 \`\`\`suggestion
-${formattedSuggestion || ''}
+${formattedSuggestion || ""}
 \`\`\`
 
 [View rule](https://github.com/${owner}/${repo}/blob/${latestCommitId}/.ai-code-rules/${issue.rule_id}.md)`;
@@ -422,18 +418,20 @@ function shouldIgnoreFile(filename, patterns) {
 }
 
 function findCodeInPatch(patch, codeSnippet) {
-  if (!patch || !codeSnippet) return { startLine: null, endLine: null, originalIndentation: null };
+  if (!patch || !codeSnippet)
+    return { startLine: null, endLine: null, originalIndentation: null };
 
   // Store the original code snippet for indentation analysis
   const originalLines = codeSnippet.split("\n");
-  
+
   // Normalize the code snippet by trimming each line
   const normalizedSnippet = codeSnippet
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  if (normalizedSnippet.length === 0) return { startLine: null, endLine: null, originalIndentation: null };
+  if (normalizedSnippet.length === 0)
+    return { startLine: null, endLine: null, originalIndentation: null };
 
   const lines = patch.split("\n");
   let currentLine = 0;
@@ -521,11 +519,28 @@ function findCodeInPatch(patch, codeSnippet) {
   if (startLine !== null && originalLines.length > 0) {
     // Get indentation from the first non-empty line
     for (const line of originalLines) {
-      if (line.trim() !== '') {
+      if (line.trim() !== "") {
         const match = line.match(/^(\s+)/);
         if (match) {
           originalIndentation = match[1];
+          console.log(`Found indentation: '${originalIndentation}'`);
           break;
+        }
+      }
+    }
+    
+    // Fallback: if we couldn't extract indentation from the snippet,
+    // try to extract it from the patch at the matching position
+    if (!originalIndentation) {
+      const patchLines = patch.split('\n');
+      for (const line of patchLines) {
+        if (line.startsWith('+') && line.includes(originalLines[0].trim())) {
+          const match = line.substring(1).match(/^(\s+)/);
+          if (match) {
+            originalIndentation = match[1];
+            console.log(`Found indentation from patch: '${originalIndentation}'`);
+            break;
+          }
         }
       }
     }
