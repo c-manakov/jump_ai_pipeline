@@ -192,3 +192,5 @@ describe("extractAddedLines", () => {
     expect(indexModule.extractAddedLines(patch)).toEqual([]);
   });
 });
+
+// so now let's test analyzeCodeForTests mocking all that we need to with rewire AI!
