@@ -1,6 +1,6 @@
 const path = require("path");
 
-const { findCodeInPatch } = require("../src/index");
+const { findCodeInPatch, shouldIgnoreFile } = require("../src/index");
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
@@ -75,3 +75,5 @@ describe("shouldIgnoreFile", () => {
     expect(shouldIgnoreFile("node_modules/package/index.js", patterns)).toBe(true);
   });
 });
+
+// ok, now let's test loadIgnorePatterns, we will need to mock fs functions for that AI!
