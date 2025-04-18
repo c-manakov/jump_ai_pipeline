@@ -105,7 +105,13 @@ async function run() {
       const addedLines = extractAddedLines(file.patch);
       if (addedLines.length === 0) continue;
 
-      // apart from extracting added lines let's also read the full file content from the filesystem AI!
+      // Read the full file content from the filesystem
+      let fullFileContent = "";
+      try {
+        fullFileContent = fs.readFileSync(file.filename, 'utf8');
+      } catch (error) {
+        console.log(`Warning: Could not read file ${file.filename}: ${error.message}`);
+      }
 
       console.log(
         `Analyzing ${file.filename} (${addedLines.length} added lines)`,
@@ -116,6 +122,7 @@ async function run() {
         anthropic,
         addedLines.join("\n"),
         rules,
+        fullFileContent
       );
 
       // Post comments if issues found
@@ -175,7 +182,7 @@ function extractAddedLines(patch) {
   return addedLines;
 }
 
-async function analyzeCode(anthropic, code, rules) {
+async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
   // Prepare rules text for the prompt
   const rulesText = rules
     .map((rule) => `## ${rule.title}\n${rule.content}`)
@@ -187,12 +194,18 @@ You are a code reviewer checking if code follows specific rules.
 # Rules to check:
 ${rulesText}
 
-# Code to analyze:
+# Code to analyze (newly added lines):
 \`\`\`
 ${code}
 \`\`\`
 
-IMPORTANT: Only analyze the code shown above, which represents newly added lines in a pull request. Focus exclusively on these lines when identifying rule violations.
+${fullFileContent ? `# Full file context (for reference only):
+\`\`\`
+${fullFileContent}
+\`\`\`
+` : ''}
+
+IMPORTANT: Only analyze the code shown in the "Code to analyze" section, which represents newly added lines in a pull request. Focus exclusively on these lines when identifying rule violations. The full file context is provided only for reference to understand the surrounding code.
 
 Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
