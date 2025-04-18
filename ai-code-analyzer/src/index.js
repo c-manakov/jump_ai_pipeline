@@ -88,10 +88,17 @@ async function run() {
 
     console.log(`Loaded ${rules.length} rules from ${rulesPath}`);
 
-    // I want to introduce a way to filter out the files that the rules should be applied to, like .ai-analyzer-ignore that would mimic the .gitignore format AI!
-
+    // Load ignore patterns if .ai-analyzer-ignore exists
+    const ignorePatterns = loadIgnorePatterns();
+    
     // Process each file in the PR
     for (const file of files) {
+      // Skip files that match ignore patterns
+      if (shouldIgnoreFile(file.filename, ignorePatterns)) {
+        console.log(`Skipping ignored file: ${file.filename}`);
+        continue;
+      }
+      
       if (file.status === "removed") continue;
 
       // Extract added lines
@@ -299,6 +306,66 @@ ${issue.suggestion}
       console.error(error);
     }
   }
+}
+
+function loadIgnorePatterns() {
+  const ignoreFile = '.ai-analyzer-ignore';
+  const patterns = [];
+  
+  try {
+    if (fs.existsSync(ignoreFile)) {
+      const content = fs.readFileSync(ignoreFile, 'utf8');
+      const lines = content.split('\n');
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        // Skip empty lines and comments
+        if (trimmedLine && !trimmedLine.startsWith('#')) {
+          patterns.push(trimmedLine);
+        }
+      }
+      
+      console.log(`Loaded ${patterns.length} ignore patterns from ${ignoreFile}`);
+    } else {
+      console.log(`No ${ignoreFile} file found, analyzing all files`);
+    }
+  } catch (error) {
+    console.error(`Error loading ignore patterns: ${error.message}`);
+  }
+  
+  return patterns;
+}
+
+function shouldIgnoreFile(filename, patterns) {
+  if (!patterns || patterns.length === 0) return false;
+  
+  for (const pattern of patterns) {
+    // Convert glob pattern to regex
+    // This is a simplified version - for a full implementation, consider using a library like minimatch
+    const regexPattern = pattern
+      .replace(/\./g, '\\.')  // Escape dots
+      .replace(/\*/g, '.*')   // Convert * to .*
+      .replace(/\?/g, '.')    // Convert ? to .
+      .replace(/\//g, '\\/'); // Escape slashes
+    
+    const regex = new RegExp(`^${regexPattern}$`);
+    
+    // Check if filename matches the pattern
+    if (regex.test(filename)) {
+      return true;
+    }
+    
+    // Also check if any directory in the path matches
+    const parts = filename.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      const partialPath = parts.slice(0, i).join('/');
+      if (regex.test(partialPath)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 function findCodeInPatch(patch, codeSnippet) {

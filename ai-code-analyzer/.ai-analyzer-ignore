@@ -1,0 +1,14 @@
+# AI Code Analyzer ignore file
+# Similar to .gitignore, this file specifies patterns for files that should be ignored by the analyzer
+
+# Ignore node_modules
+node_modules/
+
+# Ignore test files
+**/*.test.js
+**/*.spec.js
+**/*_test.exs
+
+# Ignore generated files
+dist/
+_build/
