@@ -78,7 +78,7 @@ async function run() {
     }
 
     // Generate a repository map and find test files for source files
-    const repoMap = await generateRepoMap(octokit, owner, repo);
+    const repoMap = generateRepoMap(octokit, owner, repo);
     const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
 
     console.log("Source to test file mapping:");
@@ -446,7 +446,7 @@ function getLastLineNumber(patch) {
   return Math.max(currentLine, 1);
 }
 
-async function generateRepoMap() {
+function generateRepoMap() {
   console.log("Generating repository file map...");
 
   try {
