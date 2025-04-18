@@ -188,6 +188,7 @@ async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
+  // let's ask the ai for a confidence score in the suggestion being correct and write out exactly what tiers there are. Use a similar approach as in ai-test-writer/src/index.js. Then make our code just discard anything that's below 4 and leave the suggestion empty. AI!
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
 
