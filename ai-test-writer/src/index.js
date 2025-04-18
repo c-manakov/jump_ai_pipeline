@@ -792,6 +792,21 @@ async function implementPendingTestFiles(
     console.log(`Successfully implemented ${pendingTestFiles.length} test files in a single commit`);
     console.log(`Commit SHA: ${newCommit.sha}`);
     
+    // Trigger workflow run to test the new tests
+    try {
+      console.log(`Triggering workflow run to test the new tests...`);
+      await octokit.rest.actions.createWorkflowDispatch({
+        owner,
+        repo,
+        workflow_id: 'elixir-tests.yml',
+        ref: branchName
+      });
+      console.log(`Successfully triggered workflow run`);
+    } catch (error) {
+      console.error(`Error triggering workflow run: ${error.message}`);
+      // Non-fatal error, continue
+    }
+    
     // Clear the pending files
     pendingTestFiles.length = 0;
     
