@@ -33,4 +33,6 @@ defmodule JumpAiPipeline do
   def uncovered_new_function(a, b, c) do
     (a + b + c) * 2
   end
+
+# let's generate a function here that is tricky, that would produce a low confidence score on the test AI!
 end
