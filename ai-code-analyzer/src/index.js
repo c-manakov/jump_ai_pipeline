@@ -109,11 +109,26 @@ async function run() {
         `Analyzing ${file.filename} (${addedLines.length} added lines)`,
       );
 
+      // Get the full file content for better context
+      let fileContent = "";
+      try {
+        const resolvedPath = path.resolve(process.cwd(), file.filename);
+        fileContent = fs.readFileSync(resolvedPath, "utf8");
+        console.log(
+          `Read full content for ${file.filename} (${fileContent.length} chars)`
+        );
+      } catch (error) {
+        console.log(
+          `Could not retrieve full content for ${file.filename}: ${error.message}`
+        );
+      }
+
       // Analyze code with Claude
       const analysis = await analyzeCode(
         anthropic,
         addedLines.join("\n"),
         rules,
+        fileContent
       );
 
       // Post comments if issues found
@@ -179,9 +194,19 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // We need to change this prompt. I want to request the AI to provide the suggestions as SEARCH/REPLACE blocks and also I need to provide the full file for context AI!
+  // Create the prompt for Claude
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
+
+# Full file for context:
+\`\`\`
+${fullFileContent || code}
+\`\`\`
+
+# Added code to analyze:
+\`\`\`
+${code}
+\`\`\`
 
 # Rules to check:
 ${rulesText}
@@ -191,12 +216,16 @@ ${rulesText}
 ${code}
 \`\`\`
 
-Analyze the code and identify any violations of the rules. For each violation:
+Analyze ONLY the added code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
-4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code. If the suggestion is to remove the code, provide no suggestion
-5. Make sure the suggestion maintains proper formatting and indentation
+4. Provide a fix as a SEARCH/REPLACE block that maintains proper formatting and indentation
+
+For each SEARCH/REPLACE block:
+- Include enough context to uniquely identify the location
+- Make sure the replacement code is valid and functional
+- Only suggest changes to the added code, not pre-existing code
 
 Format your response as JSON:
 {
@@ -205,7 +234,10 @@ Format your response as JSON:
       "rule_id": "rule-id",
       "code": "the exact problematic code snippet",
       "explanation": "why this violates the rule",
-      "suggestion": "suggested code fix"
+      "search_replace": {
+        "search": "code to search for (including the problematic code)",
+        "replace": "code to replace it with (fixed version)"
+      }
     }
   ]
 }
@@ -234,6 +266,17 @@ If no issues are found, return {"issues": []}.
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const analysis = JSON.parse(jsonText);
 
+    // Process search/replace blocks if they exist
+    if (analysis.issues) {
+      analysis.issues = analysis.issues.map(issue => {
+        if (issue.search_replace) {
+          // Ensure the suggestion field exists for backward compatibility
+          issue.suggestion = issue.search_replace.replace || "";
+        }
+        return issue;
+      });
+    }
+
     return analysis;
   } catch (error) {
     console.error("Failed to parse Claude response:", error);
@@ -260,16 +303,19 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
       continue;
     }
 
-    const body = `## AI Code Review: ${issue.rule_id}
+    let body = `## AI Code Review: ${issue.rule_id}
 
-${issue.explanation}
+${issue.explanation}`;
 
-### Suggestion:
-\`\`\`suggestion
-${issue.suggestion}
+    // Add search/replace block if available
+    if (issue.search_replace) {
+      body += `
+
+### Suggested Fix:
 \`\`\`
-
-[View rule](${issue.rule_id}.md)`;
+${file.filename}
+<<<<<<< SEARCH
+${issue.search_replace.search}
 
     console.log(
       `Posting comment on ${file.filename}:${startLine}-${endLine} with commit ID ${latestCommitId}`,
