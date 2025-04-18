@@ -213,11 +213,10 @@ ${fullFileContent}
 IMPORTANT: Only analyze the code shown in the "Code to analyze" section, which represents newly added lines in a pull request. Focus exclusively on these lines when identifying rule violations. The full file context is provided only for reference to understand the surrounding code when providing the suggestion.
 
 Analyze the code and identify any violations of the rules. For each violation:
-1. Identify the specific rule that was violated
+1. Carefully identify the specific rule that was violated. If the rule was not provided above then ignore the violation
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
 4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before. If the suggestion is to remove the code, provide none.
-5. Be vary careful to make sure that suggestion maintains the same formatting. Take the formatting and the original number of whitespaces from the reference file (where the same problematic code is) and apply it to the suggestion.
 
 Format your response as JSON:
 {
