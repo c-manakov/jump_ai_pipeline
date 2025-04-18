@@ -88,8 +88,17 @@ async function run() {
 
     console.log(`Loaded ${rules.length} rules from ${rulesPath}`);
 
+    // Load ignore patterns if .ai-analyzer-ignore exists
+    const ignorePatterns = loadIgnorePatterns();
+    
     // Process each file in the PR
     for (const file of files) {
+      // Skip files that match ignore patterns
+      if (shouldIgnoreFile(file.filename, ignorePatterns)) {
+        console.log(`Skipping ignored file: ${file.filename}`);
+        continue;
+      }
+      
       if (file.status === "removed") continue;
 
       // Extract added lines
@@ -186,7 +195,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
-4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code
+4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code. If the suggestion is to remove the code, provide no suggestion
 5. Make sure the suggestion maintains proper formatting and indentation
 
 Format your response as JSON:
@@ -297,6 +306,66 @@ ${issue.suggestion}
       console.error(error);
     }
   }
+}
+
+function loadIgnorePatterns() {
+  const ignoreFile = '.ai-analyzer-ignore';
+  const patterns = [];
+  
+  try {
+    if (fs.existsSync(ignoreFile)) {
+      const content = fs.readFileSync(ignoreFile, 'utf8');
+      const lines = content.split('\n');
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        // Skip empty lines and comments
+        if (trimmedLine && !trimmedLine.startsWith('#')) {
+          patterns.push(trimmedLine);
+        }
+      }
+      
+      console.log(`Loaded ${patterns.length} ignore patterns from ${ignoreFile}`);
+    } else {
+      console.log(`No ${ignoreFile} file found, analyzing all files`);
+    }
+  } catch (error) {
+    console.error(`Error loading ignore patterns: ${error.message}`);
+  }
+  
+  return patterns;
+}
+
+function shouldIgnoreFile(filename, patterns) {
+  if (!patterns || patterns.length === 0) return false;
+  
+  for (const pattern of patterns) {
+    // Convert glob pattern to regex
+    // This is a simplified version - for a full implementation, consider using a library like minimatch
+    const regexPattern = pattern
+      .replace(/\./g, '\\.')  // Escape dots
+      .replace(/\*/g, '.*')   // Convert * to .*
+      .replace(/\?/g, '.')    // Convert ? to .
+      .replace(/\//g, '\\/'); // Escape slashes
+    
+    const regex = new RegExp(`^${regexPattern}$`);
+    
+    // Check if filename matches the pattern
+    if (regex.test(filename)) {
+      return true;
+    }
+    
+    // Also check if any directory in the path matches
+    const parts = filename.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      const partialPath = parts.slice(0, i).join('/');
+      if (regex.test(partialPath)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 function findCodeInPatch(patch, codeSnippet) {
