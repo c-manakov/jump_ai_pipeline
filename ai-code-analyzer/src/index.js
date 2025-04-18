@@ -190,7 +190,7 @@ async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
     .join("\n\n");
 
   const prompt = `
-You are a code reviewer checking if code follows specific rules.
+You are an expert and careful software engineer checking if code follows specific rules.
 
 # Rules to check:
 ${rulesText}
@@ -216,9 +216,8 @@ Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
-4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful, simple, changes the code and VERY IMPORTANTLY keeps it valid. If the suggestion is to remove the code, provide no suggestion. If the suggestion is creating other functions in place of the code, provide no suggestion.
-5. Make sure the suggestion maintains proper formatting and indentation
-6. Carefully analyze how the suggestion would affect full file structure and if the code is still valid after a direct replace. If it is not, simply provide no suggestion
+4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before
+5. Be vary careful to make sure that suggestion maintains the same formatting as before
 
 Format your response as JSON:
 {
