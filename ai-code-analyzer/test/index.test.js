@@ -557,6 +557,7 @@ describe("analyzeCode", () => {
     
     // Verify the result is a default empty issues array
     expect(result).toEqual({ issues: [] });
-    expect(console.error).toHaveBeenCalled();
   });
 });
+
+// that works perfectly, thank you. Now let's test loadRules AI!

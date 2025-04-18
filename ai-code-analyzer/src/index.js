@@ -228,7 +228,6 @@ Format your response as JSON:
 
 If no issues are found, return {"issues": []}.
 `;
-  console.log(prompt);
 
   // Call Claude API
   const message = await anthropic.messages.create({
