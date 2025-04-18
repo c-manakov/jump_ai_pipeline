@@ -18,5 +18,21 @@ inputs:
     required: false
 
 runs:
-  using: 'node20'
-  main: 'dist/index.js'
+  using: 'composite'
+  steps:
+    - name: Install dependencies
+      run: cd ${{ github.action_path }} && npm install
+      shell: bash
+      
+    - name: Build action
+      run: cd ${{ github.action_path }} && npm run build
+      shell: bash
+      
+    - name: Run action
+      run: node ${{ github.action_path }}/dist/index.js
+      shell: bash
+      env:
+        INPUT_GITHUB-TOKEN: ${{ inputs.github-token }}
+        INPUT_ANTHROPIC-API-KEY: ${{ inputs.anthropic-api-key }}
+        INPUT_COVERAGE-PATH: ${{ inputs.coverage-path }}
+        INPUT_PR-NUMBER: ${{ inputs.pr-number }}
