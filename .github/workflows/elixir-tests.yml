@@ -78,6 +78,12 @@ jobs:
           name: coverage-report
           path: cover/
           retention-days: 14
+
+      - name: Install dependencies
+        run: cd ai-test-writer && npm install
+        
+      - name: Build action
+        run: cd ai-test-writer && npm run build
           
       - name: AI Test Writer
         uses: ./ai-test-writer
