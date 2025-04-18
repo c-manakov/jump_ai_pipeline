@@ -303,13 +303,6 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
           // For all lines including the first one, apply proper indentation
           const trimmedLine = line.replace(/^\s+/, "");
           return originalIndentation + trimmedLine;
-
-          // For subsequent lines, replace their existing indentation with the original
-          // First remove any existing indentation
-          const trimmedLine = line.replace(/^\s+/, "");
-
-          // Then add the original indentation
-          return originalIndentation + trimmedLine;
         })
         .join("\n");
     }
