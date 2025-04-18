@@ -430,7 +430,7 @@ ${
       console.log(
         `High confidence tests - eligible for automatic implementation`,
       );
-      // Future implementation: await implementTest(analysis);
+      // ok, now let's implement the committing of the files in which the ai was confident. We can just replace their contents and commit them, but add a hash-tag #ai-test to the message so we can avoid running our ai analyzers on it AI!
     }
   } catch (error) {
     console.error(`Error posting test suggestion: ${error.message}`);
