@@ -6,6 +6,8 @@ Elixir provides the concept of truthiness: `nil` and `false` are considered "fal
 
 Using those operators is not an anti-pattern. However, using those operators when all operands are expected to be booleans, may be an anti-pattern.
 
+Please note that using >, <, =>, <= operators is not an anti-pattern at all
+
 ## Bad Example
 
 ```elixir
