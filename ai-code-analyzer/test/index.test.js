@@ -1,15 +1,23 @@
+// Mock modules before requiring them
+jest.mock('fs', () => ({
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+  readdirSync: jest.fn(),
+  promises: {
+    access: jest.fn()
+  }
+}));
+jest.mock('@actions/core');
+jest.mock('@actions/github');
+jest.mock('@anthropic-ai/sdk');
+jest.mock('glob');
+
+// Now import the modules
 const fs = require('fs');
 const path = require('path');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const github = require('@actions/github');
 const core = require('@actions/core');
-
-// Mock the modules
-jest.mock('fs');
-jest.mock('@actions/core');
-jest.mock('@actions/github');
-jest.mock('@anthropic-ai/sdk');
-jest.mock('glob');
 
 // Import the functions we want to test
 // We need to use rewire to access private functions
