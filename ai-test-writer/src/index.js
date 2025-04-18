@@ -391,7 +391,7 @@ async function postTestSuggestions(
 ${testSummary}
 
 ### Overall Confidence Level: ${confidenceLevel}/5
-${actionType}
+${actionType}${confidenceLevel >= 4 ? ' (Will be automatically implemented)' : ''}
 
 ### Complete Test File:
 \`\`\`elixir
@@ -401,10 +401,10 @@ ${analysis.complete_test_file}
 ${
   analysis.create_new_file
     ? `
-### Note: This requires creating a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
+### Note: This ${confidenceLevel >= 4 ? 'will create' : 'requires creating'} a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
 `
     : `
-### This updates the existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
+### This ${confidenceLevel >= 4 ? 'will update' : 'updates'} the existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
 `
 }`;
 
@@ -430,7 +430,16 @@ ${
       console.log(
         `High confidence tests - eligible for automatic implementation`,
       );
-      // ok, now let's implement the committing of the files in which the ai was confident. We can just replace their contents and commit them, but add a hash-tag #ai-test to the message so we can avoid running our ai analyzers on it AI!
+      // Implement high-confidence tests automatically
+      await implementTestFile(
+        octokit,
+        owner,
+        repo,
+        analysis.test_file_path,
+        analysis.complete_test_file,
+        file.filename,
+        pullNumber
+      );
     }
   } catch (error) {
     console.error(`Error posting test suggestion: ${error.message}`);
@@ -660,6 +669,77 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
   }
 
   return sourceToTestMap;
+}
+
+/**
+ * Implements a test file by creating or updating it in the repository
+ */
+async function implementTestFile(
+  octokit,
+  owner,
+  repo,
+  testFilePath,
+  testFileContent,
+  sourceFilePath,
+  pullNumber
+) {
+  console.log(`Implementing test file: ${testFilePath}`);
+  
+  try {
+    // Check if the file already exists in the repository
+    let fileExists = false;
+    let sha = null;
+    
+    try {
+      const { data: fileData } = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path: testFilePath,
+        ref: `refs/pull/${pullNumber}/head`
+      });
+      
+      if (fileData) {
+        fileExists = true;
+        sha = fileData.sha;
+        console.log(`Test file already exists, will update: ${testFilePath}`);
+      }
+    } catch (error) {
+      // File doesn't exist, which is fine
+      console.log(`Test file doesn't exist yet, will create: ${testFilePath}`);
+    }
+    
+    // Get the current branch name from the PR
+    const { data: pullRequest } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+    
+    const branchName = pullRequest.head.ref;
+    console.log(`Target branch for commit: ${branchName}`);
+    
+    // Create or update the file
+    const commitMessage = `test: Add tests for ${sourceFilePath} #ai-test`;
+    
+    const { data: result } = await octokit.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: testFilePath,
+      message: commitMessage,
+      content: Buffer.from(testFileContent).toString('base64'),
+      sha: sha, // Only needed when updating an existing file
+      branch: branchName
+    });
+    
+    console.log(`Successfully ${fileExists ? 'updated' : 'created'} test file: ${testFilePath}`);
+    console.log(`Commit URL: ${result.commit.html_url}`);
+    
+    return result;
+  } catch (error) {
+    console.error(`Error implementing test file: ${error.message}`);
+    console.error(error);
+    return null;
+  }
 }
 
 run();
