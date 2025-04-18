@@ -179,7 +179,6 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // provide the full file with code for context AI!
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
 
