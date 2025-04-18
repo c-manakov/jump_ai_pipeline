@@ -190,7 +190,7 @@ async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
     .join("\n\n");
 
   const prompt = `
-You are a code reviewer checking if code follows specific rules.
+You are an expert and careful software engineer checking if code follows specific rules.
 
 # Rules to check:
 ${rulesText}
@@ -213,12 +213,10 @@ ${fullFileContent}
 IMPORTANT: Only analyze the code shown in the "Code to analyze" section, which represents newly added lines in a pull request. Focus exclusively on these lines when identifying rule violations. The full file context is provided only for reference to understand the surrounding code when providing the suggestion.
 
 Analyze the code and identify any violations of the rules. For each violation:
-1. Identify the specific rule that was violated
+1. Carefully identify the specific rule that was violated. If the rule was not provided above then ignore the violation
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
-4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful, simple, changes the code and VERY IMPORTANTLY keeps it valid. If the suggestion is to remove the code, provide no suggestion. If the suggestion is creating other functions in place of the code, provide no suggestion.
-5. Make sure the suggestion maintains proper formatting and indentation
-6. Carefully analyze how the suggestion would affect full file structure and if the code is still valid after a direct replace. If it is not, simply provide no suggestion
+4. Suggest a specific code change to fix the issue but only if it changes the code in meaningful way. Do NOT create suggestions that would leave the code the same as before. If the suggestion is to remove the code, provide none.
 
 Format your response as JSON:
 {
@@ -227,13 +225,14 @@ Format your response as JSON:
       "rule_id": "rule-id",
       "code": "the exact problematic code snippet",
       "explanation": "why this violates the rule",
-      "suggestion": "suggested code fix"
+      "suggestion": "(whitespaces as in the reference) suggested code fix"
     }
   ]
 }
 
 If no issues are found, return {"issues": []}.
 `;
+  console.log(prompt);
 
   // Call Claude API
   const message = await anthropic.messages.create({
@@ -277,10 +276,24 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
   for (const issue of analysis.issues) {
     // Find the line numbers for the problematic code
-    const { startLine, endLine } = findCodeInPatch(file.patch, issue.code);
+    const { startLine, endLine, originalIndentation } = findCodeInPatch(file.patch, issue.code);
     if (!startLine || !endLine) {
       console.log(`Could not find line numbers for issue in ${file.filename}`);
       continue;
+    }
+
+    // Apply the original indentation to the suggestion
+    let formattedSuggestion = issue.suggestion;
+    if (originalIndentation && issue.suggestion) {
+      formattedSuggestion = issue.suggestion
+        .split('\n')
+        .map((line, index) => {
+          // Don't add indentation to empty lines
+          if (line.trim() === '') return '';
+          // First line might already have correct indentation from the AI
+          return index === 0 ? line : originalIndentation + line;
+        })
+        .join('\n');
     }
 
     const body = `## AI Code Review: ${issue.rule_id}
@@ -289,7 +302,7 @@ ${issue.explanation}
 
 ### Suggestion:
 \`\`\`suggestion
-${issue.suggestion}
+${formattedSuggestion || ''}
 \`\`\`
 
 [View rule](${issue.rule_id}.md)`;
@@ -394,15 +407,18 @@ function shouldIgnoreFile(filename, patterns) {
 }
 
 function findCodeInPatch(patch, codeSnippet) {
-  if (!patch || !codeSnippet) return { startLine: null, endLine: null };
+  if (!patch || !codeSnippet) return { startLine: null, endLine: null, originalIndentation: null };
 
+  // Store the original code snippet for indentation analysis
+  const originalLines = codeSnippet.split("\n");
+  
   // Normalize the code snippet by trimming each line
   const normalizedSnippet = codeSnippet
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  if (normalizedSnippet.length === 0) return { startLine: null, endLine: null };
+  if (normalizedSnippet.length === 0) return { startLine: null, endLine: null, originalIndentation: null };
 
   const lines = patch.split("\n");
   let currentLine = 0;
@@ -485,7 +501,17 @@ function findCodeInPatch(patch, codeSnippet) {
     }
   }
 
-  return { startLine, endLine };
+  // Extract indentation from the original code snippet
+  let originalIndentation = null;
+  if (startLine !== null && originalLines.length > 0) {
+    const firstLine = originalLines[0];
+    const match = firstLine.match(/^(\s+)/);
+    if (match) {
+      originalIndentation = match[1];
+    }
+  }
+
+  return { startLine, endLine, originalIndentation };
 }
 
 run();
