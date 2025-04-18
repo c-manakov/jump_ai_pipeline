@@ -188,7 +188,6 @@ async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // let's ask the ai for a confidence score in the suggestion being correct and write out exactly what tiers there are. Use a similar approach as in ai-test-writer/src/index.js. Then make our code just discard anything that's below 4 and leave the suggestion empty. AI!
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
 
@@ -215,6 +214,12 @@ Analyze the code and identify any violations of the rules. For each violation:
 4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful, simple, changes the code and VERY IMPORTANTLY keeps it valid. If the suggestion is to remove the code, provide no suggestion. If the suggestion is creating other functions in place of the code, provide no suggestion.
 5. Make sure the suggestion maintains proper formatting and indentation
 6. Carefully analyze how the suggestion would affect full file structure and if the code is still valid after a direct replace. If it is not, simply provide no suggestion
+7. Rate your confidence in the suggestion from 1-5:
+   - 1: Very low confidence - significant uncertainty about correctness
+   - 2: Low confidence - might work but has potential issues
+   - 3: Medium confidence - should work in most cases
+   - 4: High confidence - very likely to work correctly
+   - 5: Very high confidence - certain this is the correct solution
 
 Format your response as JSON:
 {
@@ -223,7 +228,8 @@ Format your response as JSON:
       "rule_id": "rule-id",
       "code": "the exact problematic code snippet",
       "explanation": "why this violates the rule",
-      "suggestion": "suggested code fix"
+      "suggestion": "suggested code fix",
+      "confidence": 3
     }
   ]
 }
@@ -251,8 +257,19 @@ If no issues are found, return {"issues": []}.
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const analysis = JSON.parse(jsonText);
-    console.log(analysis)
-
+    
+    // Filter out issues with confidence below 4
+    if (analysis.issues && analysis.issues.length > 0) {
+      analysis.issues = analysis.issues.filter(issue => {
+        if (!issue.confidence || issue.confidence < 4) {
+          console.log(`Filtering out low confidence suggestion (${issue.confidence}/5) for rule: ${issue.rule_id}`);
+          return false;
+        }
+        return true;
+      });
+    }
+    
+    console.log(analysis);
     return analysis;
   } catch (error) {
     console.error("Failed to parse Claude response:", error);
@@ -283,7 +300,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
 ${issue.explanation}
 
-### Suggestion:
+### Suggestion: (Confidence: ${issue.confidence}/5)
 \`\`\`suggestion
 ${issue.suggestion}
 \`\`\`
