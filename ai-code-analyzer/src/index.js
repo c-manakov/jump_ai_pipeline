@@ -186,7 +186,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
 2. Explain why it violates the rule
 3. Include the exact problematic code snippet that violates the rule
-4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code
+4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code. If the suggestion is to remove the code, provide no suggestion
 5. Make sure the suggestion maintains proper formatting and indentation
 
 Format your response as JSON:
