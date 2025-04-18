@@ -47,3 +47,5 @@ describe("createHeuristicSourceToTestMap", () => {
     });
   });
 });
+
+// cool, now let's test generateRepoMap and mock fs.readdirSync AI!

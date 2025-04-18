@@ -446,7 +446,7 @@ function getLastLineNumber(patch) {
   return Math.max(currentLine, 1);
 }
 
-async function generateRepoMap(octokit, owner, repo) {
+async function generateRepoMap() {
   console.log("Generating repository file map...");
 
   try {
