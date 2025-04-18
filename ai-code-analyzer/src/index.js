@@ -179,7 +179,7 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // the suggestions seem a bit buggy, so let's change our approach here. We need to provide the full file for context, the code that was added and ask to generate a separate suggestion for each violation but ONLY on the code that was added. The suggestion (if it is possible) should be formatted as a SEARCH/REPLACE block while making sure that the code remains valid and functional. Then for each search/replace block our code will find the searched code part in the commit and generate a suggestion without AI directly AI!
+  // Create the prompt for Claude
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
 
