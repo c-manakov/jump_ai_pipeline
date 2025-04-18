@@ -128,7 +128,7 @@ async function run() {
         const dirContents = fs.readdirSync(parentDir);
         console.log(dirContents);
         
-        const resolvedPath = path.resolve(process.cwd(), "..", file.filename);
+        const resolvedPath = path.resolve(process.cwd(), file.filename);
         fileContent = fs.readFileSync(resolvedPath, "utf8");
         console.log(
           `Read full content for ${file.filename} (${fileContent.length} chars)`,
