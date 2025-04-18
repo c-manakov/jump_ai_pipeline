@@ -11,21 +11,11 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      # also move these build steps into the action itself AI!
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: cd ai-code-analyzer && npm install
-        
-      - name: Build action
-        run: cd ai-code-analyzer && npm run build
         
       - name: Run AI Code Analyzer
         uses: ./ai-code-analyzer
