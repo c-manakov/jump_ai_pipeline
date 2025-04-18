@@ -175,6 +175,12 @@ async function run() {
       }
     }
 
+    // Implement all queued test files in a single commit
+    if (pendingTestFiles.length > 0) {
+      console.log(`Implementing ${pendingTestFiles.length} queued test files...`);
+      await implementPendingTestFiles(octokit, owner, repo, pullNumber);
+    }
+
     console.log("AI test analysis completed");
   } catch (error) {
     console.error("Action failed with error:", error);
@@ -424,21 +430,16 @@ ${
       `Posted test suggestions for ${file.filename} (overall confidence: ${confidenceLevel}/5)`,
     );
 
-    // If confidence is high (4-5), we could automatically implement the test
-    // This would be implemented in a separate function
+    // If confidence is high (4-5), queue the test file for implementation
     if (confidenceLevel >= 4) {
       console.log(
         `High confidence tests - eligible for automatic implementation`,
       );
-      // Implement high-confidence tests automatically
-      await implementTestFile(
-        octokit,
-        owner,
-        repo,
+      // Queue the test file for implementation
+      await queueTestFileForImplementation(
         analysis.test_file_path,
         analysis.complete_test_file,
-        file.filename,
-        pullNumber
+        file.filename
       );
     }
   } catch (error) {
@@ -672,42 +673,46 @@ function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
 }
 
 /**
- * Implements a test file by creating or updating it in the repository
+ * Collects test files to be implemented
  */
-async function implementTestFile(
+const pendingTestFiles = [];
+
+/**
+ * Adds a test file to the pending implementation queue
+ */
+async function queueTestFileForImplementation(
+  testFilePath,
+  testFileContent,
+  sourceFilePath
+) {
+  console.log(`Queueing test file for implementation: ${testFilePath}`);
+  
+  pendingTestFiles.push({
+    testFilePath,
+    testFileContent,
+    sourceFilePath
+  });
+  
+  return true;
+}
+
+/**
+ * Implements all queued test files in a single commit
+ */
+async function implementPendingTestFiles(
   octokit,
   owner,
   repo,
-  testFilePath,
-  testFileContent,
-  sourceFilePath,
   pullNumber
 ) {
-  console.log(`Implementing test file: ${testFilePath}`);
+  if (pendingTestFiles.length === 0) {
+    console.log("No test files to implement");
+    return null;
+  }
+  
+  console.log(`Implementing ${pendingTestFiles.length} test files in a single commit`);
   
   try {
-    // Check if the file already exists in the repository
-    let fileExists = false;
-    let sha = null;
-    
-    try {
-      const { data: fileData } = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path: testFilePath,
-        ref: `refs/pull/${pullNumber}/head`
-      });
-      
-      if (fileData) {
-        fileExists = true;
-        sha = fileData.sha;
-        console.log(`Test file already exists, will update: ${testFilePath}`);
-      }
-    } catch (error) {
-      // File doesn't exist, which is fine
-      console.log(`Test file doesn't exist yet, will create: ${testFilePath}`);
-    }
-    
     // Get the current branch name from the PR
     const { data: pullRequest } = await octokit.rest.pulls.get({
       owner,
@@ -718,25 +723,81 @@ async function implementTestFile(
     const branchName = pullRequest.head.ref;
     console.log(`Target branch for commit: ${branchName}`);
     
-    // Create or update the file
-    const commitMessage = `test: Add tests for ${sourceFilePath} #ai-test`;
-    
-    const { data: result } = await octokit.rest.repos.createOrUpdateFileContents({
+    // Get the latest commit SHA to create a new tree based on it
+    const { data: refData } = await octokit.rest.git.getRef({
       owner,
       repo,
-      path: testFilePath,
-      message: commitMessage,
-      content: Buffer.from(testFileContent).toString('base64'),
-      sha: sha, // Only needed when updating an existing file
-      branch: branchName
+      ref: `heads/${branchName}`
     });
     
-    console.log(`Successfully ${fileExists ? 'updated' : 'created'} test file: ${testFilePath}`);
-    console.log(`Commit URL: ${result.commit.html_url}`);
+    const latestCommitSha = refData.object.sha;
+    console.log(`Latest commit SHA: ${latestCommitSha}`);
     
-    return result;
+    // Get the commit that the latest commit points to
+    const { data: latestCommit } = await octokit.rest.git.getCommit({
+      owner,
+      repo,
+      commit_sha: latestCommitSha
+    });
+    
+    const treeSha = latestCommit.tree.sha;
+    
+    // Create blobs for each file
+    const fileBlobs = await Promise.all(
+      pendingTestFiles.map(async (file) => {
+        const { data: blob } = await octokit.rest.git.createBlob({
+          owner,
+          repo,
+          content: Buffer.from(file.testFileContent).toString('base64'),
+          encoding: 'base64'
+        });
+        
+        return {
+          path: file.testFilePath,
+          mode: '100644', // Regular file
+          type: 'blob',
+          sha: blob.sha
+        };
+      })
+    );
+    
+    // Create a new tree with the new blobs
+    const { data: newTree } = await octokit.rest.git.createTree({
+      owner,
+      repo,
+      base_tree: treeSha,
+      tree: fileBlobs
+    });
+    
+    // Create a commit with the new tree
+    const sourceFiles = pendingTestFiles.map(file => file.sourceFilePath).join(', ');
+    const commitMessage = `test: Add tests for ${sourceFiles} #ai-test`;
+    
+    const { data: newCommit } = await octokit.rest.git.createCommit({
+      owner,
+      repo,
+      message: commitMessage,
+      tree: newTree.sha,
+      parents: [latestCommitSha]
+    });
+    
+    // Update the reference to point to the new commit
+    await octokit.rest.git.updateRef({
+      owner,
+      repo,
+      ref: `heads/${branchName}`,
+      sha: newCommit.sha
+    });
+    
+    console.log(`Successfully implemented ${pendingTestFiles.length} test files in a single commit`);
+    console.log(`Commit SHA: ${newCommit.sha}`);
+    
+    // Clear the pending files
+    pendingTestFiles.length = 0;
+    
+    return newCommit;
   } catch (error) {
-    console.error(`Error implementing test file: ${error.message}`);
+    console.error(`Error implementing test files: ${error.message}`);
     console.error(error);
     return null;
   }
