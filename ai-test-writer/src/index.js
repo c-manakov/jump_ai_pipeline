@@ -600,6 +600,8 @@ Example:
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const sourceToTestMap = JSON.parse(jsonText);
 
+    console.log(sourceToTestMap)
+
     return sourceToTestMap;
   } catch (error) {
     console.error(`Error mapping source files to test files: ${error.message}`);
