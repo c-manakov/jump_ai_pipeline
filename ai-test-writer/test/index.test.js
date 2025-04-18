@@ -471,14 +471,6 @@ describe("run", () => {
     jest.mock("@anthropic-ai/sdk", () => ({ 
       Anthropic: function() { return mockAnthropic; } 
     }), { virtual: true });
-    
-    // we don't need to apply, just mocking should be enough AI!
-    // Apply the mocks to the rewired module
-    rewiredModule.__set__("core", mockCore);
-    rewiredModule.__set__("github", mockGithub);
-    rewiredModule.__set__("Anthropic", function () {
-      return mockAnthropic;
-    });
 
     // Mock other functions
     rewiredModule.__set__(
