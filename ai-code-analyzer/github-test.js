@@ -1,3 +1,4 @@
+// this is a runner to work directly with github's api from local to debug issues
 const { Anthropic } = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const path = require('path');

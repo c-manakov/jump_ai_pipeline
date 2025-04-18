@@ -12,18 +12,16 @@ async function run() {
     console.log("Node version:", process.version);
     console.log("Current directory:", process.cwd());
 
-    // For GitHub Actions:
     const githubToken =
       core.getInput("github-token", { required: true }) ||
       process.env.GITHUB_TOKEN;
     const anthropicApiKey =
       core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
     const rulesPath = core.getInput("rules-path") || ".ai-code-rules";
-
-    // For local development:
-    // const githubToken = process.env.GITHUB_TOKEN;
-    // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    // const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+    const { owner, repo } = context.repo;
+    const pullNumber = context.payload.pull_request?.number;
 
     if (!githubToken) {
       throw new Error(
@@ -45,23 +43,9 @@ async function run() {
     );
     console.log("- rules-path:", rulesPath);
 
-    // For GitHub Actions:
-    const octokit = github.getOctokit(githubToken);
-    const context = github.context;
-    const { owner, repo } = context.repo;
-    const pullNumber = context.payload.pull_request?.number;
-    //
-    // For local development:
-    // const { Octokit } = require("@octokit/rest");
-    // const octokit = new Octokit({ auth: githubToken });
-    //
     const anthropic = new Anthropic({
       apiKey: anthropicApiKey,
     });
-
-    // const owner = process.env.GITHUB_OWNER;
-    // const repo = process.env.GITHUB_REPO;
-    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     if (!owner || !repo || isNaN(pullNumber)) {
       throw new Error(
@@ -78,7 +62,6 @@ async function run() {
       pull_number: pullNumber,
     });
 
-    // Load rules
     const rules = await loadRules(rulesPath);
     if (rules.length === 0) {
       console.log(`No rules found in ${rulesPath}`);
@@ -90,7 +73,6 @@ async function run() {
     // Load ignore patterns if .ai-analyzer-ignore exists
     const ignorePatterns = loadIgnorePatterns();
 
-    // Process each file in the PR
     for (const file of files) {
       // Skip files that match ignore patterns
       if (shouldIgnoreFile(file.filename, ignorePatterns)) {
@@ -100,7 +82,6 @@ async function run() {
 
       if (file.status === "removed") continue;
 
-      // Extract added lines
       const addedLines = extractAddedLines(file.patch);
       if (addedLines.length === 0) continue;
 
@@ -118,7 +99,6 @@ async function run() {
         `Analyzing ${file.filename} (${addedLines.length} added lines)`,
       );
 
-      // Analyze code with Claude
       const analysis = await analyzeCode(
         anthropic,
         addedLines.join("\n"),
@@ -126,7 +106,6 @@ async function run() {
         fullFileContent,
       );
 
-      // Post comments if issues found
       if (analysis.issues.length > 0) {
         await postComments(octokit, owner, repo, pullNumber, file, analysis);
       }
@@ -143,25 +122,33 @@ async function run() {
 async function loadRules(rulesPath) {
   const rules = [];
 
-  // Find all markdown files in the rules directory
-  const files = glob.sync(`${rulesPath}/**/*.md`);
+  try {
+    // Find all markdown files in the rules directory
+    const files = glob.sync(`${rulesPath}/**/*.md`);
+    console.log(files)
 
-  for (const file of files) {
-    const content = fs.readFileSync(file, "utf8");
-    const relativePath = path.relative(process.cwd(), file);
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(file, "utf8");
+        const relativePath = path.relative(process.cwd(), file);
 
-    // Parse markdown to get title and description
-    const tokens = marked.lexer(content);
-    const title =
-      tokens.find((t) => t.type === "heading" && t.depth === 1)?.text ||
-      path.basename(file, ".md");
+        const tokens = marked.lexer(content);
+        const title =
+          tokens.find((t) => t.type === "heading" && t.depth === 1)?.text ||
+          path.basename(file, ".md");
 
-    rules.push({
-      id: path.basename(file, ".md"),
-      title,
-      content,
-      path: relativePath,
-    });
+        rules.push({
+          id: path.basename(file, ".md"),
+          title,
+          content,
+          path: relativePath,
+        });
+      } catch (error) {
+        console.error(`Error loading rule from ${file}: ${error.message}`);
+      }
+    }
+  } catch (error) {
+    console.error(`Error finding rule files: ${error.message}`);
   }
 
   return rules;
@@ -184,7 +171,6 @@ function extractAddedLines(patch) {
 }
 
 async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
-  // Prepare rules text for the prompt
   const rulesText = rules
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
@@ -232,9 +218,7 @@ Format your response as JSON:
 
 If no issues are found, return {"issues": []}.
 `;
-  console.log(prompt);
 
-  // Call Claude API
   const message = await anthropic.messages.create({
     model: "claude-3-7-sonnet-latest",
     max_tokens: 4000,
@@ -243,9 +227,7 @@ If no issues are found, return {"issues": []}.
     messages: [{ role: "user", content: prompt }],
   });
 
-  // Parse the response
   try {
-    // Extract JSON from the response
     const responseText = message.content[0].text;
     const jsonMatch =
       responseText.match(/```json\n([\s\S]*?)\n```/) ||
@@ -274,8 +256,9 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
   const latestCommitId = pullRequest.head.sha;
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
+  console.log(analysis.issues)
+
   for (const issue of analysis.issues) {
-    // Find the line numbers for the problematic code
     const { startLine, endLine, originalIndentation } = findCodeInPatch(
       file.patch,
       issue.code,
@@ -286,26 +269,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
     }
 
     // Apply the original indentation to the suggestion
-    let formattedSuggestion = issue.suggestion;
-    if (originalIndentation && issue.suggestion) {
-      // Preserve the original indentation pattern for each line
-      const lines = issue.suggestion.split("\n");
-
-      // Check if the first line already has indentation
-      const firstLineIndent = lines[0].match(/^(\s+)/);
-      const baseIndent = firstLineIndent ? firstLineIndent[1] : "";
-
-      formattedSuggestion = lines
-        .map((line, index) => {
-          // Don't add indentation to empty lines
-          if (line.trim() === "") return "";
-
-          // For all lines including the first one, apply proper indentation
-          const trimmedLine = line.replace(/^\s+/, "");
-          return originalIndentation + trimmedLine;
-        })
-        .join("\n");
-    }
+    let formattedSuggestion = formatSuggestionIndentation(issue.suggestion, originalIndentation);
 
     const body = `## AI Code Review: ${issue.rule_id}
 
@@ -323,7 +287,6 @@ ${formattedSuggestion || ""}
     );
 
     try {
-      // Create a review comment
       if (startLine === endLine) {
         await octokit.rest.pulls.createReviewComment({
           owner,
@@ -390,7 +353,6 @@ function shouldIgnoreFile(filename, patterns) {
 
   for (const pattern of patterns) {
     // Convert glob pattern to regex
-    // This is a simplified version - for a full implementation, consider using a library like minimatch
     const regexPattern = pattern
       .replace(/\./g, "\\.") // Escape dots
       .replace(/\*/g, ".*") // Convert * to .*
@@ -399,7 +361,6 @@ function shouldIgnoreFile(filename, patterns) {
 
     const regex = new RegExp(`^${regexPattern}$`);
 
-    // Check if filename matches the pattern
     if (regex.test(filename)) {
       return true;
     }
@@ -418,6 +379,7 @@ function shouldIgnoreFile(filename, patterns) {
 }
 
 function findCodeInPatch(patch, codeSnippet) {
+  console.log("here")
   if (!patch || !codeSnippet)
     return { startLine: null, endLine: null, originalIndentation: null };
 
@@ -459,7 +421,6 @@ function findCodeInPatch(patch, codeSnippet) {
         matchedLines = 1;
         inMatch = true;
 
-        // If the snippet is only one line, we're done
         if (normalizedSnippet.length === 1) {
           endLine = currentLine;
           break;
@@ -510,7 +471,7 @@ function findCodeInPatch(patch, codeSnippet) {
       endLine = startLine;
     } else {
       // We didn't find a complete match
-      return { startLine: null, endLine: null };
+      return { startLine: null, endLine: null, originalIndentation: null };
     }
   }
 
@@ -528,17 +489,19 @@ function findCodeInPatch(patch, codeSnippet) {
         }
       }
     }
-    
+
     // Fallback: if we couldn't extract indentation from the snippet,
     // try to extract it from the patch at the matching position
     if (!originalIndentation) {
-      const patchLines = patch.split('\n');
+      const patchLines = patch.split("\n");
       for (const line of patchLines) {
-        if (line.startsWith('+') && line.includes(originalLines[0].trim())) {
+        if (line.startsWith("+") && line.includes(originalLines[0].trim())) {
           const match = line.substring(1).match(/^(\s+)/);
           if (match) {
             originalIndentation = match[1];
-            console.log(`Found indentation from patch: '${originalIndentation}'`);
+            console.log(
+              `Found indentation from patch: '${originalIndentation}'`,
+            );
             break;
           }
         }
@@ -549,4 +512,50 @@ function findCodeInPatch(patch, codeSnippet) {
   return { startLine, endLine, originalIndentation };
 }
 
-run();
+function formatSuggestionIndentation(suggestion, originalIndentation) {
+  if (!originalIndentation || !suggestion) {
+    return suggestion;
+  }
+
+  // Preserve the original indentation pattern for each line
+  const lines = suggestion.split("\n");
+
+  return lines
+    .map(line => {
+      // Don't add indentation to empty lines
+      if (line.trim() === "") return "";
+
+      // For all lines, apply proper indentation
+      const trimmedLine = line.replace(/^\s+/, "");
+      return originalIndentation + trimmedLine;
+    })
+    .join("\n");
+}
+
+if (process.env.NODE_ENV === "test") {
+  module.exports = {
+    __test: {
+      findCodeInPatch,
+      extractAddedLines,
+      shouldIgnoreFile,
+      loadIgnorePatterns,
+      formatSuggestionIndentation,
+    },
+  };
+}
+
+if (process.env.NODE_ENV !== "test") {
+  run();
+}
+
+module.exports = {
+  run,
+  loadRules,
+  extractAddedLines,
+  analyzeCode,
+  postComments,
+  loadIgnorePatterns,
+  shouldIgnoreFile,
+  findCodeInPatch,
+  formatSuggestionIndentation,
+};
