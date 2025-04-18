@@ -295,6 +295,16 @@ Do NOT create tests for uncovered lines that aren't in the code changes provided
 1. Identify the specific function or code block that needs testing
 2. Provide a specific test case implementation that would test this code
 3. Make sure the test follows best practices and is well-structured
+4. Rate your confidence from 1-5 that this test will work without modifications:
+   - 1: Very uncertain - conceptual suggestion only
+   - 2: Somewhat uncertain - might need significant adjustments
+   - 3: Moderately confident - should work with minor tweaks
+   - 4: Confident - should work with minimal or no changes
+   - 5: Very confident - will definitely work as written
+
+For each test suggestion, format your response as a SEARCH/REPLACE block that can be directly applied to the codebase.
+If creating a new file, the SEARCH section should be empty.
+If modifying an existing file, the SEARCH section should exactly match the existing content.
 
 Format your response as JSON:
 {
@@ -304,7 +314,9 @@ Format your response as JSON:
     {
       "target": "name of function or code block to test",
       "explanation": "why this needs testing",
-      "test_code": "suggested test implementation"
+      "test_code": "suggested test implementation",
+      "confidence": 4,
+      "search_replace_block": "test_file_path\\n\`\`\`elixir\\n<<<<<<< SEARCH\\nexisting code if any\\n=======\\nnew or modified code\\n>>>>>>> REPLACE\\n\`\`\`"
     }
   ]
 }
@@ -362,14 +374,24 @@ async function postTestSuggestions(
   console.log(`Using latest commit ID from PR: ${latestCommitId}`);
 
   for (const suggestion of analysis.suggestions) {
+    // Determine action based on confidence level
+    const confidenceLevel = suggestion.confidence || 0;
+    const actionType = confidenceLevel >= 4 ? "Automatic Implementation" : 
+                      confidenceLevel === 3 ? "Suggested Implementation" : 
+                      "Manual Implementation Required";
+    
     const body = `## AI Test Suggestion for: ${suggestion.target}
 
 ${suggestion.explanation}
 
+### Confidence Level: ${confidenceLevel}/5
+${actionType}
+
 ### Suggested Test:
-\`\`\`elixir
+${suggestion.search_replace_block || `\`\`\`elixir
 ${suggestion.test_code}
-\`\`\`
+\`\`\``}
+
 ${
   analysis.create_new_file
     ? `
@@ -393,8 +415,15 @@ ${
       });
 
       console.log(
-        `Posted test suggestion for ${suggestion.target} in ${file.filename}`,
+        `Posted test suggestion for ${suggestion.target} in ${file.filename} (confidence: ${confidenceLevel}/5)`,
       );
+      
+      // If confidence is high (4-5), we could automatically implement the test
+      // This would be implemented in a separate function
+      if (confidenceLevel >= 4) {
+        console.log(`High confidence test for ${suggestion.target} - eligible for automatic implementation`);
+        // Future implementation: await implementTest(suggestion, analysis.test_file_path);
+      }
     } catch (error) {
       console.error(`Error posting test suggestion: ${error.message}`);
       console.error(error);
