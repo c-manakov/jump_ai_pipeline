@@ -24,18 +24,6 @@ async function run() {
     const { owner, repo } = context.repo;
     const pullNumber = core.getInput("pr-number") || context.payload.pull_request?.number;
     console.log(`Pull request number: ${pullNumber}`);
-    console.log(context.payload.pull_request);
-
-    // For local development:
-    // const { Octokit } = require("@octokit/rest");
-    // const octokit = new Octokit({ auth: githubToken });
-    // const owner = process.env.GITHUB_OWNER;
-    // const repo = process.env.GITHUB_REPO;
-    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
-    //
-    // const githubToken = process.env.GITHUB_TOKEN;
-    // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    // const coveragePath = "../cover/coverage.json";
 
     if (!githubToken) {
       throw new Error(
@@ -628,7 +616,7 @@ Example:
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const sourceToTestMap = JSON.parse(jsonText);
 
-    console.log(sourceToTestMap);
+    console.log("sourceToTestMap =", sourceToTestMap);
 
     return sourceToTestMap;
   } catch (error) {

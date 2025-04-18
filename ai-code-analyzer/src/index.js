@@ -50,7 +50,6 @@ async function run() {
     const context = github.context;
     const { owner, repo } = context.repo;
     const pullNumber = context.payload.pull_request?.number;
-    console.log(context.payload.pull_request);
 
     // For local development:
     // const { Octokit } = require('@octokit/rest');
@@ -90,7 +89,7 @@ async function run() {
 
     // Load ignore patterns if .ai-analyzer-ignore exists
     const ignorePatterns = loadIgnorePatterns();
-    
+
     // Process each file in the PR
     for (const file of files) {
       // Skip files that match ignore patterns
@@ -98,7 +97,7 @@ async function run() {
         console.log(`Skipping ignored file: ${file.filename}`);
         continue;
       }
-      
+
       if (file.status === "removed") continue;
 
       // Extract added lines
@@ -108,9 +107,11 @@ async function run() {
       // Read the full file content from the filesystem
       let fullFileContent = "";
       try {
-        fullFileContent = fs.readFileSync(file.filename, 'utf8');
+        fullFileContent = fs.readFileSync(file.filename, "utf8");
       } catch (error) {
-        console.log(`Warning: Could not read file ${file.filename}: ${error.message}`);
+        console.log(
+          `Warning: Could not read file ${file.filename}: ${error.message}`,
+        );
       }
 
       console.log(
@@ -122,7 +123,7 @@ async function run() {
         anthropic,
         addedLines.join("\n"),
         rules,
-        fullFileContent
+        fullFileContent,
       );
 
       // Post comments if issues found
@@ -199,11 +200,15 @@ ${rulesText}
 ${code}
 \`\`\`
 
-${fullFileContent ? `# Full file context (for reference only):
+${
+  fullFileContent
+    ? `# Full file context (for reference only):
 \`\`\`
 ${fullFileContent}
 \`\`\`
-` : ''}
+`
+    : ""
+}
 
 IMPORTANT: Only analyze the code shown in the "Code to analyze" section, which represents newly added lines in a pull request. Focus exclusively on these lines when identifying rule violations. The full file context is provided only for reference to understand the surrounding code when providing the suggestion.
 
@@ -214,13 +219,6 @@ Analyze the code and identify any violations of the rules. For each violation:
 4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful, simple, changes the code and VERY IMPORTANTLY keeps it valid. If the suggestion is to remove the code, provide no suggestion. If the suggestion is creating other functions in place of the code, provide no suggestion.
 5. Make sure the suggestion maintains proper formatting and indentation
 6. Carefully analyze how the suggestion would affect full file structure and if the code is still valid after a direct replace. If it is not, simply provide no suggestion
-7. Rate your confidence in the suggestion from 1-5:
-   - 1: Very low confidence - significant uncertainty about correctness
-   - 2: Low confidence - might work but has potential issues
-   - 3: Medium confidence - should work in most cases
-   - 4: High confidence - very likely to work correctly
-   - 5: Very high confidence - certain this is the correct solution
-  8. If the structure of the new code is significantly different from the previous one the confidence should be low. Be very conservative with confidence scoring.
 
 Format your response as JSON:
 {
@@ -229,8 +227,7 @@ Format your response as JSON:
       "rule_id": "rule-id",
       "code": "the exact problematic code snippet",
       "explanation": "why this violates the rule",
-      "suggestion": "suggested code fix",
-      "confidence": 3
+      "suggestion": "suggested code fix"
     }
   ]
 }
@@ -258,19 +255,8 @@ If no issues are found, return {"issues": []}.
 
     const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
     const analysis = JSON.parse(jsonText);
-    
-    // Filter out issues with confidence below 4
-    if (analysis.issues && analysis.issues.length > 0) {
-      analysis.issues = analysis.issues.filter(issue => {
-        if (!issue.confidence || issue.confidence < 4) {
-          console.log(`Filtering out low confidence suggestion (${issue.confidence}/5) for rule: ${issue.rule_id}`);
-          return false;
-        }
-        return true;
-      });
-    }
-    
     console.log(analysis);
+
     return analysis;
   } catch (error) {
     console.error("Failed to parse Claude response:", error);
@@ -301,7 +287,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
 ${issue.explanation}
 
-### Suggestion: (Confidence: ${issue.confidence}/5)
+### Suggestion:
 \`\`\`suggestion
 ${issue.suggestion}
 \`\`\`
@@ -322,7 +308,7 @@ ${issue.suggestion}
           body,
           commit_id: latestCommitId,
           path: file.filename,
-          line: endLine
+          line: endLine,
         });
       } else {
         await octokit.rest.pulls.createReviewComment({
@@ -333,7 +319,7 @@ ${issue.suggestion}
           commit_id: latestCommitId,
           path: file.filename,
           start_line: startLine,
-          line: endLine
+          line: endLine,
         });
       }
 
@@ -346,62 +332,64 @@ ${issue.suggestion}
 }
 
 function loadIgnorePatterns() {
-  const ignoreFile = '.ai-analyzer-ignore';
+  const ignoreFile = ".ai-analyzer-ignore";
   const patterns = [];
-  
+
   try {
     if (fs.existsSync(ignoreFile)) {
-      const content = fs.readFileSync(ignoreFile, 'utf8');
-      const lines = content.split('\n');
-      
+      const content = fs.readFileSync(ignoreFile, "utf8");
+      const lines = content.split("\n");
+
       for (const line of lines) {
         const trimmedLine = line.trim();
         // Skip empty lines and comments
-        if (trimmedLine && !trimmedLine.startsWith('#')) {
+        if (trimmedLine && !trimmedLine.startsWith("#")) {
           patterns.push(trimmedLine);
         }
       }
-      
-      console.log(`Loaded ${patterns.length} ignore patterns from ${ignoreFile}`);
+
+      console.log(
+        `Loaded ${patterns.length} ignore patterns from ${ignoreFile}`,
+      );
     } else {
       console.log(`No ${ignoreFile} file found, analyzing all files`);
     }
   } catch (error) {
     console.error(`Error loading ignore patterns: ${error.message}`);
   }
-  
+
   return patterns;
 }
 
 function shouldIgnoreFile(filename, patterns) {
   if (!patterns || patterns.length === 0) return false;
-  
+
   for (const pattern of patterns) {
     // Convert glob pattern to regex
     // This is a simplified version - for a full implementation, consider using a library like minimatch
     const regexPattern = pattern
-      .replace(/\./g, '\\.')  // Escape dots
-      .replace(/\*/g, '.*')   // Convert * to .*
-      .replace(/\?/g, '.')    // Convert ? to .
-      .replace(/\//g, '\\/'); // Escape slashes
-    
+      .replace(/\./g, "\\.") // Escape dots
+      .replace(/\*/g, ".*") // Convert * to .*
+      .replace(/\?/g, ".") // Convert ? to .
+      .replace(/\//g, "\\/"); // Escape slashes
+
     const regex = new RegExp(`^${regexPattern}$`);
-    
+
     // Check if filename matches the pattern
     if (regex.test(filename)) {
       return true;
     }
-    
+
     // Also check if any directory in the path matches
-    const parts = filename.split('/');
+    const parts = filename.split("/");
     for (let i = 1; i < parts.length; i++) {
-      const partialPath = parts.slice(0, i).join('/');
+      const partialPath = parts.slice(0, i).join("/");
       if (regex.test(partialPath)) {
         return true;
       }
     }
   }
-  
+
   return false;
 }
 
@@ -411,9 +399,9 @@ function findCodeInPatch(patch, codeSnippet) {
   // Normalize the code snippet by trimming each line
   const normalizedSnippet = codeSnippet
     .split("\n")
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
   if (normalizedSnippet.length === 0) return { startLine: null, endLine: null };
 
   const lines = patch.split("\n");
@@ -435,24 +423,24 @@ function findCodeInPatch(patch, codeSnippet) {
 
     if (line.startsWith("+") && !line.startsWith("+++")) {
       const trimmedLine = line.substring(1).trim();
-      
+
       // Check if this line matches the start of our code snippet
       if (!inMatch && trimmedLine === normalizedSnippet[0]) {
         startLine = currentLine;
         matchedLines = 1;
         inMatch = true;
-        
+
         // If the snippet is only one line, we're done
         if (normalizedSnippet.length === 1) {
           endLine = currentLine;
           break;
         }
-      } 
+      }
       // Check if we're in the middle of matching a multi-line snippet
       else if (inMatch && matchedLines < normalizedSnippet.length) {
         if (trimmedLine === normalizedSnippet[matchedLines]) {
           matchedLines++;
-          
+
           // If we've matched all lines, we're done
           if (matchedLines === normalizedSnippet.length) {
             endLine = currentLine;
@@ -463,7 +451,7 @@ function findCodeInPatch(patch, codeSnippet) {
           inMatch = false;
           matchedLines = 0;
           startLine = null;
-          
+
           // Check if this line could be the start of a new match
           if (trimmedLine === normalizedSnippet[0]) {
             startLine = currentLine;
@@ -472,12 +460,12 @@ function findCodeInPatch(patch, codeSnippet) {
           }
         }
       }
-      
+
       currentLine++;
     } else if (!line.startsWith("-") && !line.startsWith("---")) {
       // Context lines and other non-removed lines increment the line counter
       currentLine++;
-      
+
       // Reset match if we encounter a context line in the middle of matching
       if (inMatch && matchedLines < normalizedSnippet.length) {
         inMatch = false;
