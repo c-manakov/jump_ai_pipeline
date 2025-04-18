@@ -144,5 +144,51 @@ describe("getLastLineNumber", () => {
   });
 });
 
+describe("extractAddedLines", () => {
+  test("should return empty array when patch is null or undefined", () => {
+    expect(indexModule.extractAddedLines(null)).toEqual([]);
+    expect(indexModule.extractAddedLines(undefined)).toEqual([]);
+  });
 
-// now let's add a test for extractAddedLines  AI!
+  test("should extract only added lines from patch", () => {
+    const patch = `@@ -1,3 +1,5 @@
+ const a = 1;
++const b = 2;
+ const c = 3;
++const d = 4;
+ const e = 5;`;
+
+    const result = indexModule.extractAddedLines(patch);
+    expect(result).toEqual([
+      "const b = 2;",
+      "const d = 4;"
+    ]);
+  });
+
+  test("should ignore lines starting with +++ (header lines)", () => {
+    const patch = `--- a/file.js
++++ b/file.js
+@@ -1,3 +1,4 @@
+ const a = 1;
++const b = 2;
+ const c = 3;`;
+
+    const result = indexModule.extractAddedLines(patch);
+    expect(result).toEqual([
+      "const b = 2;"
+    ]);
+  });
+
+  test("should handle empty patches", () => {
+    expect(indexModule.extractAddedLines("")).toEqual([]);
+  });
+
+  test("should handle patches with no added lines", () => {
+    const patch = `@@ -1,3 +1,3 @@
+ const a = 1;
+ const b = 2;
+ const c = 3;`;
+
+    expect(indexModule.extractAddedLines(patch)).toEqual([]);
+  });
+});
