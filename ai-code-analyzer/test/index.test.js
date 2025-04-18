@@ -4,7 +4,6 @@ process.binding = function(name) {
   return name === 'constants' ? { fs: originalConstants } : {};
 };
 
-// Mock modules before requiring them
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
   readFileSync: jest.fn(),
@@ -24,7 +23,6 @@ jest.mock('fs', () => ({
   }
 }));
 
-// Mock other modules
 jest.mock('@actions/core', () => ({
   getInput: jest.fn(),
   setFailed: jest.fn(),
