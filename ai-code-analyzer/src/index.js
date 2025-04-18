@@ -55,9 +55,9 @@ async function run() {
     // const { Octokit } = require("@octokit/rest");
     // const octokit = new Octokit({ auth: githubToken });
     //
-    // const anthropic = new Anthropic({
-    //   apiKey: anthropicApiKey,
-    // });
+    const anthropic = new Anthropic({
+      apiKey: anthropicApiKey,
+    });
 
     // const owner = process.env.GITHUB_OWNER;
     // const repo = process.env.GITHUB_REPO;
