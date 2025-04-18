@@ -23,7 +23,7 @@ async function run() {
     // For local development:
     const githubToken = process.env.GITHUB_TOKEN;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const rulesPath = process.env.RULES_PATH || '../.ai-code-rules';
+    const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
 
     if (!githubToken) {
       throw new Error(
@@ -52,7 +52,7 @@ async function run() {
     // const pullNumber = context.payload.pull_request?.number;
     //
     // For local development:
-    const { Octokit } = require('@octokit/rest');
+    const { Octokit } = require("@octokit/rest");
     const octokit = new Octokit({ auth: githubToken });
 
     const anthropic = new Anthropic({
@@ -287,6 +287,8 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
     // Apply the original indentation to the suggestion
     let formattedSuggestion = issue.suggestion;
+    console.log(formattedSuggestion);
+    console.log(originalIndentation);
     if (originalIndentation && issue.suggestion) {
       // Preserve the original indentation pattern for each line
       const lines = issue.suggestion.split("\n");
@@ -515,6 +517,7 @@ function findCodeInPatch(patch, codeSnippet) {
   }
 
   // Extract indentation from the original code snippet
+  // this doesn't seem to work, return null every time AI!
   let originalIndentation = null;
   if (startLine !== null && originalLines.length > 0) {
     // Get indentation from the first non-empty line
