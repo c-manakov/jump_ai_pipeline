@@ -52,5 +52,26 @@ describe("findCodeInPatch", () => {
   });
 });
 
-
-// ok, this covers findCodeInPatch, let's now test shouldIgnoreFile in the same way AI!
+describe("shouldIgnoreFile", () => {
+  test("should return false when patterns array is empty", () => {
+    const result = shouldIgnoreFile("file.js", []);
+    expect(result).toBe(false);
+  });
+  
+  test("should return true when filename matches a pattern", () => {
+    const patterns = ["*.js", "test/*"];
+    expect(shouldIgnoreFile("file.js", patterns)).toBe(true);
+    expect(shouldIgnoreFile("test/file.txt", patterns)).toBe(true);
+  });
+  
+  test("should return false when filename does not match any pattern", () => {
+    const patterns = ["*.js", "test/*"];
+    expect(shouldIgnoreFile("file.txt", patterns)).toBe(false);
+    expect(shouldIgnoreFile("src/file.txt", patterns)).toBe(false);
+  });
+  
+  test("should match directories in path", () => {
+    const patterns = ["node_modules/*"];
+    expect(shouldIgnoreFile("node_modules/package/index.js", patterns)).toBe(true);
+  });
+});
