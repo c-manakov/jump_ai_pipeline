@@ -691,3 +691,6 @@ describe("extractAddedLines", () => {
     expect(indexModule.extractAddedLines(patch)).toEqual([]);
   });
 });
+
+
+// that's perfect, thank you. Now let's add some tests for the run function AI!
