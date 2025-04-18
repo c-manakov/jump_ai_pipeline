@@ -120,12 +120,12 @@ jobs:
             echo "GITHUB_WORKFLOW_NAME=Tester test" >> $GITHUB_ENV
           fi
           
-      - name: AI Test Writer
-        uses: ./ai-test-writer
-        if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.pr_number != '' || steps.get_pr.outputs.PR_NUMBER != ''))) && steps.check_commit.outputs.skip_analysis != 'true'
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          coverage-path: cover/coverage.json
-          pr-number: ${{ github.event.pull_request.number || github.event.inputs.pr_number || steps.get_pr.outputs.PR_NUMBER }}
-
+      # - name: AI Test Writer
+      #   uses: ./ai-test-writer
+      #   if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.pr_number != '' || steps.get_pr.outputs.PR_NUMBER != ''))) && steps.check_commit.outputs.skip_analysis != 'true'
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      #     coverage-path: cover/coverage.json
+      #     pr-number: ${{ github.event.pull_request.number || github.event.inputs.pr_number || steps.get_pr.outputs.PR_NUMBER }}
+      #
