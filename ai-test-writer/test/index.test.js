@@ -59,6 +59,7 @@ describe("generateRepoMap", () => {
         isFile: () => name.endsWith(".ex")
       }));
       
+      // make it much smaller, we don't need that much AI!
       // Mock a realistic project structure
       if (dir.includes("test/app")) {
         return createEntries(["accounts_test.exs", "users_test.exs"]);
