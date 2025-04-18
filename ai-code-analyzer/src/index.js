@@ -220,6 +220,7 @@ Analyze the code and identify any violations of the rules. For each violation:
    - 3: Medium confidence - should work in most cases
    - 4: High confidence - very likely to work correctly
    - 5: Very high confidence - certain this is the correct solution
+  8. If the structure of the new code is significantly different from the previous one the confidence should be low. Be very conservative with confidence scoring.
 
 Format your response as JSON:
 {
