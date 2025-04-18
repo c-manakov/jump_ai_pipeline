@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 
-const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns, formatSuggestionIndentation } = require("../src/index");
+const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns, formatSuggestionIndentation, postComments } = require("../src/index");
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
@@ -188,12 +188,12 @@ describe("postComments", () => {
       ]
     };
 
-    // Create a spy on findCodeInPatch
-    const findCodeInPatchSpy = jest.spyOn(global, 'findCodeInPatch')
+    // Create a spy on the imported functions
+    const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
       .mockReturnValue({ startLine: 2, endLine: 2, originalIndentation: null });
 
     // Create a spy on formatSuggestionIndentation
-    const formatSuggestionIndentationSpy = jest.spyOn(global, 'formatSuggestionIndentation')
+    const formatSuggestionIndentationSpy = jest.spyOn(require("../src/index"), 'formatSuggestionIndentation')
       .mockReturnValue("const b = 2; // Fixed");
 
     // Call the function
@@ -249,8 +249,8 @@ describe("postComments", () => {
       ]
     };
 
-    // Create a spy on findCodeInPatch
-    const findCodeInPatchSpy = jest.spyOn(global, 'findCodeInPatch')
+    // Create a spy on the imported functions
+    const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
       .mockReturnValue({ startLine: null, endLine: null, originalIndentation: null });
 
     // Call the function
@@ -296,12 +296,12 @@ describe("postComments", () => {
       ]
     };
 
-    // Create a spy on findCodeInPatch
-    const findCodeInPatchSpy = jest.spyOn(global, 'findCodeInPatch')
+    // Create a spy on the imported functions
+    const findCodeInPatchSpy = jest.spyOn(require("../src/index"), 'findCodeInPatch')
       .mockReturnValue({ startLine: 2, endLine: 3, originalIndentation: null });
 
     // Create a spy on formatSuggestionIndentation
-    const formatSuggestionIndentationSpy = jest.spyOn(global, 'formatSuggestionIndentation')
+    const formatSuggestionIndentationSpy = jest.spyOn(require("../src/index"), 'formatSuggestionIndentation')
       .mockReturnValue("const b = 2;\nconst e = 5; // Fixed");
 
     // Call the function
