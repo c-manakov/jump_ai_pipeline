@@ -306,6 +306,7 @@ ${formattedSuggestion || ''}
 \`\`\`
 
 [View rule](${issue.rule_id}.md)`;
+    // the link above needs to be fixes to have a url to the specific file with the rule on this specific commit AI!
 
     console.log(
       `Posting comment on ${file.filename}:${startLine}-${endLine} with commit ID ${latestCommitId}`,
