@@ -13,17 +13,17 @@ async function run() {
     console.log("Current directory:", process.cwd());
 
     // For GitHub Actions:
-    // const githubToken =
-    //   core.getInput("github-token", { required: true }) ||
-    //   process.env.GITHUB_TOKEN;
-    // const anthropicApiKey =
-    //   core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
-    // const rulesPath = core.getInput("rules-path") || ".ai-code-rules";
+    const githubToken =
+      core.getInput("github-token", { required: true }) ||
+      process.env.GITHUB_TOKEN;
+    const anthropicApiKey =
+      core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
+    const rulesPath = core.getInput("rules-path") || ".ai-code-rules";
 
     // For local development:
-    const githubToken = process.env.GITHUB_TOKEN;
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
+    // const githubToken = process.env.GITHUB_TOKEN;
+    // const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    // const rulesPath = process.env.RULES_PATH || "../.ai-code-rules";
 
     if (!githubToken) {
       throw new Error(
@@ -46,22 +46,22 @@ async function run() {
     console.log("- rules-path:", rulesPath);
 
     // For GitHub Actions:
-    // const octokit = github.getOctokit(githubToken);
-    // const context = github.context;
-    // const { owner, repo } = context.repo;
-    // const pullNumber = context.payload.pull_request?.number;
+    const octokit = github.getOctokit(githubToken);
+    const context = github.context;
+    const { owner, repo } = context.repo;
+    const pullNumber = context.payload.pull_request?.number;
     //
     // For local development:
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({ auth: githubToken });
+    // const { Octokit } = require("@octokit/rest");
+    // const octokit = new Octokit({ auth: githubToken });
+    //
+    // const anthropic = new Anthropic({
+    //   apiKey: anthropicApiKey,
+    // });
 
-    const anthropic = new Anthropic({
-      apiKey: anthropicApiKey,
-    });
-
-    const owner = process.env.GITHUB_OWNER;
-    const repo = process.env.GITHUB_REPO;
-    const pullNumber = parseInt(process.env.PR_NUMBER, 10);
+    // const owner = process.env.GITHUB_OWNER;
+    // const repo = process.env.GITHUB_REPO;
+    // const pullNumber = parseInt(process.env.PR_NUMBER, 10);
 
     if (!owner || !repo || isNaN(pullNumber)) {
       throw new Error(
@@ -287,8 +287,6 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
     // Apply the original indentation to the suggestion
     let formattedSuggestion = issue.suggestion;
-    console.log(formattedSuggestion);
-    console.log(originalIndentation);
     if (originalIndentation && issue.suggestion) {
       // Preserve the original indentation pattern for each line
       const lines = issue.suggestion.split("\n");
