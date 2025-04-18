@@ -564,27 +564,17 @@ describe("analyzeCode", () => {
   });
 });
 
-// actually we don't need to rewire loadRules at all, just mock the functions with jest and use the function normally AI!
 describe("loadRules", () => {
-  // Use rewire to access and modify private functions
-  let rewiredModule;
-  
   beforeEach(() => {
-    // Create a new rewired instance for each test
-    rewiredModule = rewire("../src/index");
-    
     // Mock fs functions
     jest.spyOn(fs, "readFileSync").mockImplementation(() => "# Rule Title\n\nRule content goes here");
     jest.spyOn(fs, "existsSync").mockImplementation(() => true);
     
-    // Mock glob using rewire - this properly replaces the glob module in the rewired module
-    const mockGlob = {
-      sync: jest.fn().mockReturnValue([
-        ".ai-code-rules/rule1.md",
-        ".ai-code-rules/rule2.md"
-      ])
-    };
-    rewiredModule.__set__("glob", mockGlob);
+    // Mock glob.sync directly with Jest
+    jest.spyOn(glob, "sync").mockReturnValue([
+      ".ai-code-rules/rule1.md",
+      ".ai-code-rules/rule2.md"
+    ]);
   });
 
   afterEach(() => {
@@ -592,11 +582,8 @@ describe("loadRules", () => {
   });
 
   test("should load rules from markdown files", async () => {
-    // Get the loadRules function from the module
-    const loadRules = rewiredModule.__get__("loadRules");
-    
-    // Call the function
-    const rules = await loadRules(".ai-code-rules");
+    // Call the function directly from the imported module
+    const rules = await indexModule.loadRules(".ai-code-rules");
     
     // Verify the result
     expect(rules).toHaveLength(2);
@@ -618,11 +605,8 @@ describe("loadRules", () => {
     // Mock readFileSync to return content without a title
     fs.readFileSync.mockImplementation(() => "Rule content without title");
     
-    // Get the loadRules function from the module
-    const loadRules = rewiredModule.__get__("loadRules");
-    
-    // Call the function
-    const rules = await loadRules(".ai-code-rules");
+    // Call the function directly from the imported module
+    const rules = await indexModule.loadRules(".ai-code-rules");
     
     // Verify the result
     expect(rules).toHaveLength(2);
@@ -634,11 +618,8 @@ describe("loadRules", () => {
     // Mock glob to return empty array
     glob.sync.mockImplementation(() => []);
     
-    // Get the loadRules function from the module
-    const loadRules = rewiredModule.__get__("loadRules");
-    
-    // Call the function
-    const rules = await loadRules(".ai-code-rules");
+    // Call the function directly from the imported module
+    const rules = await indexModule.loadRules(".ai-code-rules");
     
     // Verify the result
     expect(rules).toEqual([]);
@@ -653,11 +634,8 @@ describe("loadRules", () => {
     // Mock console.error to prevent test output pollution
     jest.spyOn(console, 'error').mockImplementation(() => {});
     
-    // Get the loadRules function from the module
-    const loadRules = rewiredModule.__get__("loadRules");
-    
-    // Call the function
-    const rules = await loadRules(".ai-code-rules");
+    // Call the function directly from the imported module
+    const rules = await indexModule.loadRules(".ai-code-rules");
     
     // Verify the result - should still return the second rule
     expect(rules).toHaveLength(1);
