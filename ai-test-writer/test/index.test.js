@@ -465,8 +465,14 @@ describe("run", () => {
       },
     };
 
-    // what if instead of using rewire for these modules we just used jest consts directly?  AI!
-    // Replace the internal dependencies with our mocks
+    // Replace the internal dependencies with our mocks using Jest's module system
+    jest.mock("@actions/core", () => mockCore, { virtual: true });
+    jest.mock("@actions/github", () => mockGithub, { virtual: true });
+    jest.mock("@anthropic-ai/sdk", () => ({ 
+      Anthropic: function() { return mockAnthropic; } 
+    }), { virtual: true });
+    
+    // Apply the mocks to the rewired module
     rewiredModule.__set__("core", mockCore);
     rewiredModule.__set__("github", mockGithub);
     rewiredModule.__set__("Anthropic", function () {
