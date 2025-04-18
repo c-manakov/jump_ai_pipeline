@@ -27,8 +27,8 @@ jobs:
       - name: Build action
         run: cd ai-code-analyzer && npm run build
         
-      # - name: Run AI Code Analyzer
-      #   uses: ./ai-code-analyzer
-      #   with:
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Run AI Code Analyzer
+        uses: ./ai-code-analyzer
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
