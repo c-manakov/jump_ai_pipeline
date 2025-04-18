@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 
-const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns } = require("../src/index");
+const { findCodeInPatch, shouldIgnoreFile, loadIgnorePatterns, formatSuggestionIndentation } = require("../src/index");
 
 describe("findCodeInPatch", () => {
   test("should return null values when patch or code snippet is empty", () => {
@@ -147,3 +147,5 @@ describe("formatSuggestionIndentation", () => {
     expect(result).toBe(expected);
   });
 });
+
+// perfect, thank you. Now let's test postComments. We'll need some mocks for that. AI!
