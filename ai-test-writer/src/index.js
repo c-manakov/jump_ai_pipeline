@@ -251,8 +251,6 @@ async function analyzeCodeForTests(
     return { suggestions: [] };
   }
 
-  // first of all let's scrap the search/replace block and just ask to provide the full resulting file with the new tests  AI!
-  // second let's try to lower the average confidence score by encouraging AI to be a bit more reserved with it confidence  AI!
   // Create the prompt for Claude
   const prompt = `
 You are an expert automated QA engineer that helps developers improve their test coverage.
@@ -293,16 +291,15 @@ Do NOT create tests for uncovered lines that aren't in the code changes provided
 1. Identify the specific function or code block that needs testing
 2. Provide a specific test case implementation that would test this code
 3. Make sure the test follows best practices and is well-structured
-4. Rate your confidence from 1-5 that this test will work without modifications:
-   - 1: Very uncertain - conceptual suggestion only
-   - 2: Somewhat uncertain - might need significant adjustments
-   - 3: Moderately confident - should work with minor tweaks
-   - 4: Confident - should work with minimal or no changes
-   - 5: Very confident - will definitely work as written
+4. Rate your confidence from 1-5 that this test will work without modifications
+   - Be conservative in your confidence ratings
+   - Consider 3 as the default for most tests
+   - Only use 4-5 for extremely simple and straightforward cases
+   - Use 1-2 for complex cases involving external dependencies, concurrency, or randomness
 
-For each test suggestion, format your response as a SEARCH/REPLACE block that can be directly applied to the codebase.
-If creating a new file, the SEARCH section should be empty.
-If modifying an existing file, the SEARCH section should exactly match the existing content.
+Instead of providing search/replace blocks, provide the COMPLETE test file content as it should appear after your changes.
+If creating a new file, provide the entire file content.
+If modifying an existing file, provide the entire file with your additions integrated properly.
 
 Format your response as JSON:
 {
@@ -312,15 +309,14 @@ Format your response as JSON:
     {
       "target": "name of function or code block to test",
       "explanation": "why this needs testing",
-      "test_code": "suggested test implementation",
       "confidence": 2,
-      "search_replace_block": "test_file_path\\n\`\`\`elixir\\n<<<<<<< SEARCH\\nexisting code if any\\n=======\\nnew or modified code\\n>>>>>>> REPLACE\\n\`\`\`"
+      "complete_test_file": "entire test file content with new tests integrated"
     }
   ]
 }
 
 If no test suggestions are needed, return {"suggestions": []}.
-${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, suggest additions that fit with the existing test structure."}
+${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, integrate your new tests with the existing test structure."}
 `;
 
   console.log(prompt);
@@ -388,15 +384,10 @@ ${suggestion.explanation}
 ### Confidence Level: ${confidenceLevel}/5
 ${actionType}
 
-${
-  suggestion.search_replace_block
-    ? `### Implementation:
-${suggestion.search_replace_block}`
-    : `### Suggested Test:
+### Complete Test File:
 \`\`\`elixir
-${suggestion.test_code}
-\`\`\``
-}
+${suggestion.complete_test_file}
+\`\`\`
 
 ${
   analysis.create_new_file
@@ -404,7 +395,7 @@ ${
 ### Note: This requires creating a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
 `
     : `
-### Add to existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
+### This updates the existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
 `
 }`;
 
