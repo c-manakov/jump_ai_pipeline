@@ -285,7 +285,7 @@ async function postComments(octokit, owner, repo, pullNumber, file, analysis) {
 
     // Apply the original indentation to the suggestion
     let formattedSuggestion = issue.suggestion;
-    if (originalIndentation) {
+    if (originalIndentation && issue.suggestion) {
       formattedSuggestion = issue.suggestion
         .split('\n')
         .map((line, index) => {
@@ -303,7 +303,7 @@ ${issue.explanation}
 
 ### Suggestion:
 \`\`\`suggestion
-${formattedSuggestion}
+${formattedSuggestion || ''}
 \`\`\`
 
 [View rule](${issue.rule_id}.md)`;
