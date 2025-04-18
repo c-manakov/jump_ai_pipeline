@@ -44,6 +44,7 @@ defmodule JumpAiPipeline do
     
     case Task.yield(task, timeout) do
       {:ok, result} -> {:ok, result}
+      
       nil ->
         Task.shutdown(task)
         {:error, :timeout}
