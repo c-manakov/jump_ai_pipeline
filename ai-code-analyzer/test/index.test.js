@@ -564,6 +564,7 @@ describe("analyzeCode", () => {
   });
 });
 
+// actually we don't need to rewire loadRules at all, just mock the functions with jest and use the function normally AI!
 describe("loadRules", () => {
   // Use rewire to access and modify private functions
   let rewiredModule;

@@ -142,6 +142,7 @@ async function loadRules(rulesPath) {
   try {
     // Find all markdown files in the rules directory
     const files = glob.sync(`${rulesPath}/**/*.md`);
+    console.log(files)
 
     for (const file of files) {
       try {
