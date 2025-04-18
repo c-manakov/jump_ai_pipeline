@@ -25,7 +25,12 @@ defmodule JumpAiPipeline do
     IO.inspect("hehe")
   end
 
+  # uncovered function that is not added in the new MR
   def another_interesting_function(a, b) do
     a + b
+  end
+
+  def uncovered_new_function(a, b, c) do
+    (a + b + c) * 2
   end
 end
