@@ -188,7 +188,7 @@ function extractAddedLines(patch) {
   return addedLines;
 }
 
-async function analyzeCode(anthropic, code, rules) {
+async function analyzeCode(anthropic, code, rules, fullFileContent = "") {
   // Prepare rules text for the prompt
   const rulesText = rules
     .map((rule) => `## ${rule.title}\n${rule.content}`)
