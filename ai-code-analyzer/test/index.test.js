@@ -79,13 +79,11 @@ describe("shouldIgnoreFile", () => {
 
 describe("loadIgnorePatterns", () => {
   beforeEach(() => {
-    // Mock fs functions
     jest.spyOn(fs, 'existsSync').mockImplementation(() => false);
     jest.spyOn(fs, 'readFileSync').mockImplementation(() => '');
   });
 
   afterEach(() => {
-    // Restore original implementations
     jest.restoreAllMocks();
   });
 
@@ -112,3 +110,5 @@ describe("loadIgnorePatterns", () => {
     expect(result).toEqual(["*.js", "test/*"]);
   });
 });
+
+// perfect, thank you, that works. Now let's test formatSuggestionIndentation AI!
