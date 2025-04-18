@@ -53,13 +53,13 @@ describe("generateRepoMap", () => {
     jest.spyOn(fs, "readdirSync").mockImplementation((dir, options) => {
       console.log(dir);
       
-      // Create mock directory entries with name property
       const createEntries = (names) => names.map(name => ({
         name,
         isDirectory: () => !name.endsWith(".ex"),
         isFile: () => name.endsWith(".ex")
       }));
       
+      // let's come up with a proper but small structure so that any non empty string is at the end and returns a couple folders and a file and then handle those folders in earlier conditions  AI!
       if (dir != "") {
         return createEntries(["lib", "test", "node_modules", ".git"]);
       } else if (dir.includes("lib")) {
