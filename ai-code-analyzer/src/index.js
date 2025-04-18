@@ -88,6 +88,8 @@ async function run() {
 
     console.log(`Loaded ${rules.length} rules from ${rulesPath}`);
 
+    // I want to introduce a way to filter out the files that the rules should be applied to, like .ai-analyzer-ignore that would mimic the .gitignore format AI!
+
     // Process each file in the PR
     for (const file of files) {
       if (file.status === "removed") continue;
