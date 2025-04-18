@@ -565,7 +565,13 @@ describe("analyzeCode", () => {
 });
 
 describe("loadRules", () => {
+  // Use rewire to access and modify private functions
+  let rewiredModule;
+  
   beforeEach(() => {
+    // Create a new rewired instance for each test
+    rewiredModule = rewire("../src/index");
+    
     // Mock fs and glob functions
     jest.spyOn(fs, "readFileSync").mockImplementation(() => "# Rule Title\n\nRule content goes here");
     jest.spyOn(fs, "existsSync").mockImplementation(() => true);
