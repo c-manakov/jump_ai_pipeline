@@ -143,3 +143,6 @@ describe("getLastLineNumber", () => {
     expect(indexModule.getLastLineNumber(patch)).toBe(5);
   });
 });
+
+
+// now let's add a test for extractAddedLines  AI!
