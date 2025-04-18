@@ -319,7 +319,6 @@ If no test suggestions are needed, return {"suggestions": []}.
 ${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, integrate your new tests with the existing test structure."}
 `;
 
-  console.log(prompt);
 
   // Call Claude API
   const message = await anthropic.messages.create({
@@ -334,6 +333,7 @@ ${!testFileExists ? "If a new test file needs to be created, include complete fi
   try {
     // Extract JSON from the response
     const responseText = message.content[0].text;
+    console.log(responseText)
     const jsonMatch =
       responseText.match(/```json\n([\s\S]*?)\n```/) ||
       responseText.match(/```\n([\s\S]*?)\n```/) ||
