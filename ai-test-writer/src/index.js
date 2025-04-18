@@ -18,11 +18,10 @@ async function run() {
     //   core.getInput("anthropic-api-key") || process.env.ANTHROPIC_API_KEY;
     // const coveragePath = core.getInput("coverage-path") || "cover/coverage.json";
 
-
     // For local development:
     const githubToken = process.env.GITHUB_TOKEN;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    const coveragePath = '../cover/coverage.json';
+    const coveragePath = "../cover/coverage.json";
 
     if (!githubToken) {
       throw new Error(
@@ -52,7 +51,7 @@ async function run() {
     // console.log(context.payload.pull_request);
 
     // For local development:
-    const { Octokit } = require('@octokit/rest');
+    const { Octokit } = require("@octokit/rest");
     const octokit = new Octokit({ auth: githubToken });
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;
@@ -81,7 +80,7 @@ async function run() {
     let coverageData = [];
     try {
       if (fs.existsSync(coveragePath)) {
-        const coverageContent = fs.readFileSync(coveragePath, 'utf8');
+        const coverageContent = fs.readFileSync(coveragePath, "utf8");
         coverageData = JSON.parse(coverageContent);
         console.log(`Loaded coverage data from ${coveragePath}`);
       } else {
@@ -91,9 +90,22 @@ async function run() {
       console.error(`Error loading coverage data: ${error.message}`);
     }
 
+    // so what we also now need to do before we actually analyze any of the files is as follows:
+    // Generate a repository map and find test files for source files
+    const repoMap = await generateRepoMap(octokit, owner, repo);
+    const sourceToTestMap = await mapSourceFilesToTestFiles(anthropic, repoMap);
+
+    console.log("Source to test file mapping:");
+
     // Process each file in the PR
     for (const file of files) {
       if (file.status === "removed") continue;
+
+      // Only process Elixir files
+      if (!file.filename.endsWith(".ex") && !file.filename.endsWith(".exs")) {
+        console.log(`Skipping non-Elixir file: ${file.filename}`);
+        continue;
+      }
 
       // Extract added lines
       const addedLines = extractAddedLines(file.patch);
@@ -104,48 +116,58 @@ async function run() {
       );
 
       // Find coverage data for this file
-      const fileCoverage = coverageData.find(item => item.file === file.filename);
-      
+      const fileCoverage = coverageData.find(
+        (item) => item.file === file.filename,
+      );
+
       // Get the full file content for better context
       let fileContent = "";
       try {
-        const { data: fileData } = await octokit.rest.repos.getContent({
-          owner,
-          repo,
-          path: file.filename,
-          ref: context.payload.pull_request.head.ref
-        });
-        
-        if (fileData.type === "file") {
-          fileContent = Buffer.from(fileData.content, 'base64').toString();
-          console.log(`Retrieved full content for ${file.filename} (${fileContent.length} chars)`);
-        }
+        // Read file content from filesystem
+        const resolvedPath = path.resolve(process.cwd(), "..", file.filename);
+        fileContent = fs.readFileSync(resolvedPath, "utf8");
+        console.log(
+          `Read full content for ${file.filename} (${fileContent.length} chars)`,
+        );
       } catch (error) {
-        console.log(`Could not retrieve full content for ${file.filename}: ${error.message}`);
+        console.log(
+          `Could not retrieve full content for ${file.filename}: ${error.message}`,
+        );
       }
-      
+
       // Extract uncovered lines from coverage data
       let uncoveredLines = [];
       if (fileCoverage && fileCoverage.lines) {
         uncoveredLines = fileCoverage.lines
-          .filter(line => line[1] === false)  // Get only uncovered lines
-          .map(line => line[0]);              // Extract line numbers
-        
-        console.log(`Found ${uncoveredLines.length} uncovered lines in ${file.filename}`);
+          .filter((line) => line[1] === false) // Get only uncovered lines
+          .map((line) => line[0]); // Extract line numbers
+
+        console.log(
+          `Found ${uncoveredLines.length} uncovered lines in ${file.filename}`,
+        );
       }
-      
+
       // Analyze code with Claude and suggest tests
       const analysis = await analyzeCodeForTests(
         anthropic,
         addedLines.join("\n"),
         fileCoverage,
         uncoveredLines,
-        fileContent
+        fileContent,
+        sourceToTestMap,
+        file,
       );
 
       // Post comments if test suggestions found
       if (analysis.suggestions.length > 0) {
-        await postTestSuggestions(octokit, owner, repo, pullNumber, file, analysis);
+        await postTestSuggestions(
+          octokit,
+          owner,
+          repo,
+          pullNumber,
+          file,
+          analysis,
+        );
       }
     }
 
@@ -173,41 +195,107 @@ function extractAddedLines(patch) {
   return addedLines;
 }
 
-async function analyzeCodeForTests(anthropic, code, coverageData, uncoveredLines = [], fullFileContent = "") {
+async function analyzeCodeForTests(
+  anthropic,
+  code,
+  coverageData,
+  uncoveredLines = [],
+  fullFileContent = "",
+  sourceToTestMap = {},
+  file = {},
+) {
+  // Get the corresponding test file if it exists
+  let testFileContent = "";
+  let testFileExists = false;
+
+  if (sourceToTestMap && file.filename) {
+    const testFilePath = sourceToTestMap[file.filename];
+    if (testFilePath) {
+      try {
+        const resolvedTestPath = path.resolve(
+          process.cwd(),
+          "..",
+          testFilePath,
+        );
+        testFileContent = fs.readFileSync(resolvedTestPath, "utf8");
+        testFileExists = true;
+        console.log(`Found and loaded test file: ${testFilePath}`);
+      } catch (error) {
+        console.log(
+          `Test file exists in mapping but couldn't be read: ${error.message}`,
+        );
+      }
+    }
+  }
+
+  // Enhance the full file content by marking uncovered lines
+  let enhancedFileContent = fullFileContent;
+  if (fullFileContent && uncoveredLines.length > 0) {
+    const lines = fullFileContent.split("\n");
+    uncoveredLines.forEach((lineNum) => {
+      if (lineNum > 0 && lineNum <= lines.length) {
+        lines[lineNum - 1] = lines[lineNum - 1] + " # UNCOVERED";
+      }
+    });
+    enhancedFileContent = lines.join("\n");
+  }
+
+  // Skip analysis if no coverage data and no code changes
+  if (
+    (!coverageData || !coverageData.lines || coverageData.lines.length === 0) &&
+    (!code || code.trim() === "")
+  ) {
+    console.log(
+      `Skipping analysis for ${file.filename}: No coverage data or code changes`,
+    );
+    return { suggestions: [] };
+  }
+
   // Create the prompt for Claude
   const prompt = `
-You are a test writing assistant that helps developers improve their test coverage.
+You are an expert automated QA engineer that helps developers improve their test coverage.
 
-${fullFileContent ? `
-# Full file content for context:
+${
+  enhancedFileContent
+    ? `
+# Full file content for context (lines marked with "# UNCOVERED" need test coverage):
 \`\`\`
-${fullFileContent}
+${enhancedFileContent}
 \`\`\`
-` : ''}
+`
+    : ""
+}
+
+${
+  testFileExists
+    ? `
+# Existing test file content:
+\`\`\`
+${testFileContent}
+\`\`\`
+`
+    : "# No existing test file found for this module."
+}
 
 # Code changes to analyze:
 \`\`\`
 ${code}
 \`\`\`
 
-${coverageData ? `
-# Current coverage data:
-\`\`\`json
-${JSON.stringify(coverageData, null, 2)}
-\`\`\`
+# Test file path:
+${sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, "").replace(/\.ex$/, "_test.exs")}`}
 
-# Uncovered lines:
-${uncoveredLines.length > 0 ? uncoveredLines.join(', ') : 'None detected'}
-` : '# No coverage data available for this file.'}
+Analyze the code and suggest tests that would improve coverage. Focus ONLY on uncovered lines that were added in the current commit (these are the lines in the "Code changes to analyze" section that are also marked with "# UNCOVERED" in the full file content).
 
-Analyze the code and suggest tests that would improve coverage. For each suggestion:
+Do NOT create tests for uncovered lines that aren't in the code changes provided above. For each suggestion:
 1. Identify the specific function or code block that needs testing
-2. Explain why testing this is important
-3. Provide a specific test case implementation that would test this code
-4. Make sure the test follows best practices and is well-structured
+2. Provide a specific test case implementation that would test this code
+3. Make sure the test follows best practices and is well-structured
 
 Format your response as JSON:
 {
+  "create_new_file": ${!testFileExists},
+  "test_file_path": "${testFileExists ? sourceToTestMap[file.filename] || "" : sourceToTestMap[file.filename] || `test/${file.filename.replace(/^lib\//, "").replace(/\.ex$/, "_test.exs")}`}",
   "suggestions": [
     {
       "target": "name of function or code block to test",
@@ -218,7 +306,10 @@ Format your response as JSON:
 }
 
 If no test suggestions are needed, return {"suggestions": []}.
+${!testFileExists ? "If a new test file needs to be created, include complete file structure with all necessary imports and setup code." : "For existing test files, suggest additions that fit with the existing test structure."}
 `;
+
+  console.log(prompt);
 
   // Call Claude API
   const message = await anthropic.messages.create({
@@ -248,7 +339,14 @@ If no test suggestions are needed, return {"suggestions": []}.
   }
 }
 
-async function postTestSuggestions(octokit, owner, repo, pullNumber, file, analysis) {
+async function postTestSuggestions(
+  octokit,
+  owner,
+  repo,
+  pullNumber,
+  file,
+  analysis,
+) {
   // Get the latest commit ID from the PR
   const { data: pullRequest } = await octokit.rest.pulls.get({
     owner,
@@ -268,7 +366,15 @@ ${suggestion.explanation}
 \`\`\`elixir
 ${suggestion.test_code}
 \`\`\`
-`;
+${
+  analysis.create_new_file
+    ? `
+### Note: This requires creating a new test file at \`${analysis.test_file_path || "test/path/to/new_test_file.exs"}\`
+`
+    : `
+### Add to existing test file: \`${analysis.test_file_path || "test/path/to/existing_test_file.exs"}\`
+`
+}`;
 
     try {
       // Create a review comment at the end of the file
@@ -279,10 +385,12 @@ ${suggestion.test_code}
         body,
         commit_id: latestCommitId,
         path: file.filename,
-        line: getLastLineNumber(file.patch)
+        line: getLastLineNumber(file.patch),
       });
 
-      console.log(`Posted test suggestion for ${suggestion.target} in ${file.filename}`);
+      console.log(
+        `Posted test suggestion for ${suggestion.target} in ${file.filename}`,
+      );
     } catch (error) {
       console.error(`Error posting test suggestion: ${error.message}`);
       console.error(error);
@@ -309,6 +417,186 @@ function getLastLineNumber(patch) {
   }
 
   return Math.max(currentLine, 1);
+}
+
+/**
+ * Generate a map of all files in the repository
+ */
+async function generateRepoMap(octokit, owner, repo) {
+  console.log("Generating repository file map...");
+
+  try {
+    // Always use the filesystem since the action has access to the repo
+    {
+      const files = [];
+      const rootDir = path.resolve(process.cwd(), "..");
+
+      // Simple recursive function to get all files
+      const getFilesRecursively = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          const relativePath = path.relative(rootDir, fullPath);
+
+          // Skip hidden directories and node_modules
+          if (
+            entry.name.startsWith(".") ||
+            entry.name === "node_modules" ||
+            entry.name === "_build" ||
+            entry.name === "deps"
+          ) {
+            continue;
+          }
+
+          if (entry.isDirectory()) {
+            getFilesRecursively(fullPath);
+          } else if (entry.isFile()) {
+            files.push(relativePath);
+          }
+        }
+      };
+
+      getFilesRecursively(rootDir);
+      console.log(`Found ${files.length} files in the repository`);
+      return files;
+    }
+
+    // For GitHub Actions, use the GitHub API
+    const { data: repoContent } = await octokit.rest.git.getTree({
+      owner,
+      repo,
+      tree_sha: "HEAD",
+      recursive: "1",
+    });
+
+    const files = repoContent.tree
+      .filter((item) => item.type === "blob")
+      .map((item) => item.path);
+
+    console.log(`Found ${files.length} files in the repository`);
+    return files;
+  } catch (error) {
+    console.error(`Error generating repo map: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Map source files to their corresponding test files using AI
+ */
+async function mapSourceFilesToTestFiles(anthropic, repoFiles) {
+  console.log("Mapping source files to test files...");
+
+  // Filter to only include Elixir files
+  const elixirFiles = repoFiles.filter((file) => file.endsWith(".ex"));
+
+  // Separate test files from source files
+  const testFiles = elixirFiles.filter(
+    (file) =>
+      file.includes("_test.exs") ||
+      file.includes("/test/") ||
+      file.startsWith("test/"),
+  );
+  const sourceFiles = elixirFiles.filter(
+    (file) =>
+      !file.includes("_test.exs") &&
+      !file.includes("/test/") &&
+      !file.startsWith("test/"),
+  );
+
+  console.log(
+    `Found ${sourceFiles.length} source files and ${testFiles.length} test files`,
+  );
+  console.log(sourceFiles);
+  console.log(testFiles);
+
+  // If there are too many files, we might need to process them in batches
+  if (sourceFiles.length > 150) {
+    console.log(
+      "Too many source files to process at once, using heuristic matching instead",
+    );
+    return createHeuristicSourceToTestMap(sourceFiles, testFiles);
+  }
+
+  // Create a prompt for Claude to map source files to test files
+  const prompt = `
+You are a code organization expert. I need you to map source files to their corresponding test files in an Elixir project.
+
+# Source files:
+${sourceFiles.join("\n")}
+
+# Test files:
+${testFiles.join("\n")}
+
+For each source file, identify the most likely test file that would contain tests for it.
+Follow these Elixir conventions:
+1. A file at "lib/app/module.ex" is often tested in "test/app/module_test.exs"
+2. A file at "lib/app_web/controllers/user_controller.ex" might be tested in "test/app_web/controllers/user_controller_test.exs"
+3. Some modules might not have corresponding test files
+
+Return your answer as a JSON object where:
+- Keys are source file paths
+- Values are either the corresponding test file path or null if no test file exists
+
+Example:
+{
+  "lib/app/accounts.ex": "test/app/accounts_test.exs",
+  "lib/app/accounts/user.ex": "test/app/accounts/user_test.exs",
+  "lib/app_web/views/layout_view.ex": null
+}
+`;
+
+  try {
+    // Call Claude API
+    const message = await anthropic.messages.create({
+      model: "claude-3-7-sonnet-latest",
+      max_tokens: 4000,
+      system:
+        "You are a code organization assistant that maps source files to test files.",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    // Parse the response
+    const responseText = message.content[0].text;
+    const jsonMatch =
+      responseText.match(/```json\n([\s\S]*?)\n```/) ||
+      responseText.match(/```\n([\s\S]*?)\n```/) ||
+      responseText.match(/{[\s\S]*}/);
+
+    const jsonText = jsonMatch ? jsonMatch[1] || jsonMatch[0] : responseText;
+    const sourceToTestMap = JSON.parse(jsonText);
+
+    return sourceToTestMap;
+  } catch (error) {
+    console.error(`Error mapping source files to test files: ${error.message}`);
+    // Fall back to heuristic matching
+    return createHeuristicSourceToTestMap(sourceFiles, testFiles);
+  }
+}
+
+/**
+ * Create a mapping from source files to test files using heuristics
+ */
+function createHeuristicSourceToTestMap(sourceFiles, testFiles) {
+  const sourceToTestMap = {};
+
+  for (const sourceFile of sourceFiles) {
+    // Convert lib/app/module.ex to test/app/module_test.exs
+    let expectedTestFile = sourceFile
+      .replace(/^lib\//, "test/")
+      .replace(/\.ex$/, "_test.exs");
+
+    // Check if the expected test file exists
+    if (testFiles.includes(expectedTestFile)) {
+      sourceToTestMap[sourceFile] = expectedTestFile;
+    } else {
+      // Try other heuristics or set to null if no match
+      sourceToTestMap[sourceFile] = null;
+    }
+  }
+
+  return sourceToTestMap;
 }
 
 run();
