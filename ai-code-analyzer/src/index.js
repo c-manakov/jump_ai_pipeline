@@ -179,7 +179,6 @@ async function analyzeCode(anthropic, code, rules) {
     .map((rule) => `## ${rule.title}\n${rule.content}`)
     .join("\n\n");
 
-  // Also provide the full file for context, but instruct to only look for violations in the newly added code AI!
   const prompt = `
 You are a code reviewer checking if code follows specific rules.
 
@@ -190,6 +189,8 @@ ${rulesText}
 \`\`\`
 ${code}
 \`\`\`
+
+IMPORTANT: Only analyze the code shown above, which represents newly added lines in a pull request. Focus exclusively on these lines when identifying rule violations.
 
 Analyze the code and identify any violations of the rules. For each violation:
 1. Identify the specific rule that was violated
