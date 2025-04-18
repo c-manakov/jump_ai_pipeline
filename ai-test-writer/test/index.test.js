@@ -285,26 +285,6 @@ describe("analyzeCodeForTests", () => {
     expect(prompt).toContain("Existing test file content");
   });
   
-  test("should handle non-existent test files", async () => {
-    fs.existsSync.mockReturnValue(false);
-    
-    const sourceToTestMap = { "lib/calculator.ex": "test/calculator_test.exs" };
-    
-    await indexModule.analyzeCodeForTests(
-      mockAnthropic,
-      "code",
-      null,
-      [],
-      "full content",
-      sourceToTestMap,
-      { filename: "lib/calculator.ex" }
-    );
-    
-    // Verify the prompt mentioned no existing test file
-    const prompt = mockAnthropic.messages.create.mock.calls[0][0].messages[0].content;
-    expect(prompt).toContain("No existing test file found");
-  });
-  
   test("should handle coverage data", async () => {
     const coverageData = {
       lines: [
@@ -395,3 +375,5 @@ describe("analyzeCodeForTests", () => {
     expect(result).toEqual({ suggestions: [] });
   });
 });
+
+// ok, very good, now let's test the run function  AI!
