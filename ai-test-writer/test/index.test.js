@@ -50,17 +50,24 @@ describe("createHeuristicSourceToTestMap", () => {
 
 describe("generateRepoMap", () => {
   beforeEach(() => {
-    jest.spyOn(fs, "readdirSync").mockImplementation((dir) => {
-      console.log(dir)
-      // entries need to be objects that hane a `name` AI!
+    jest.spyOn(fs, "readdirSync").mockImplementation((dir, options) => {
+      console.log(dir);
+      
+      // Create mock directory entries with name property
+      const createEntries = (names) => names.map(name => ({
+        name,
+        isDirectory: () => !name.endsWith(".ex"),
+        isFile: () => name.endsWith(".ex")
+      }));
+      
       if (dir != "") {
-        return ["lib", "test", "node_modules", ".git"];
+        return createEntries(["lib", "test", "node_modules", ".git"]);
       } else if (dir.includes("lib")) {
-        return ["app", "app_web"];
+        return createEntries(["app", "app_web"]);
       } else if (dir.includes("app")) {
-        return ["accounts.ex", "users.ex"];
+        return createEntries(["accounts.ex", "users.ex"]);
       } else if (dir.includes("test")) {
-        return ["app", "app_web"];
+        return createEntries(["app", "app_web"]);
       } else {
         return [];
       }
