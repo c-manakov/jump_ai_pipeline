@@ -213,6 +213,7 @@ Analyze the code and identify any violations of the rules. For each violation:
 3. Include the exact problematic code snippet that violates the rule
 4. Suggest a specific code change to fix the issue, but only if the suggestion is meaningful and changes the code. If the suggestion is to remove the code, provide no suggestion
 5. Make sure the suggestion maintains proper formatting and indentation
+6. Carefully analyze how the suggestion would affect full file structure and if the code is still valid after a direct replace. If it is not, simply provide no suggestion
 
 Format your response as JSON:
 {
