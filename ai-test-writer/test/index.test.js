@@ -100,4 +100,46 @@ describe("generateRepoMap", () => {
   });
 });
 
-// now let's add a test for getLastLineNumber  AI!
+describe("getLastLineNumber", () => {
+  test("should return 1 when patch is null or empty", () => {
+    expect(indexModule.getLastLineNumber(null)).toBe(1);
+    expect(indexModule.getLastLineNumber("")).toBe(1);
+  });
+
+  test("should extract the last line number from a simple patch", () => {
+    const patch = `@@ -1,3 +1,4 @@
+ const a = 1;
++const b = 2;
+ const c = 3;
+ const d = 4;`;
+
+    expect(indexModule.getLastLineNumber(patch)).toBe(4);
+  });
+
+  test("should handle multiple hunks in a patch", () => {
+    const patch = `@@ -1,3 +1,4 @@
+ const a = 1;
++const b = 2;
+ const c = 3;
+ const d = 4;
+@@ -10,3 +11,5 @@
+ function test() {
+   return true;
++  // Added comment
++  // Another comment
+ }`;
+
+    expect(indexModule.getLastLineNumber(patch)).toBe(15);
+  });
+
+  test("should handle patches with different line counts", () => {
+    const patch = `@@ -1,3 +1,5 @@
+ const a = 1;
++const b = 2;
++const e = 5;
+ const c = 3;
+ const d = 4;`;
+
+    expect(indexModule.getLastLineNumber(patch)).toBe(5);
+  });
+});
