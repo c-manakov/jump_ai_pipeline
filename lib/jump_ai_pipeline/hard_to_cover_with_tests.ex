@@ -143,6 +143,10 @@ defmodule JumpAiPipeline.HardToCoverWithTests do
         state.results
         |> Enum.sort_by(fn {index, _} -> index end)
         |> Enum.map(fn {_, result} -> result end)
+        |> case do
+          [] -> []
+          results -> results
+        end
 
       {:ok, results}
     else
